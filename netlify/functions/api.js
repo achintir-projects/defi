@@ -1,5 +1,3 @@
-const { createProxyMiddleware } = require('http-proxy-middleware');
-
 // API routes that need to be proxied to the Next.js server
 const apiRoutes = [
   '/api/prices',
@@ -62,7 +60,7 @@ async function handlePricesAPI(req, res) {
 
     // Mock price data
     const prices = {};
-    const allTokens = ['USDT', 'USDC', 'DAI', 'BUSD', 'FRAX', 'LUSD'];
+    const allTokens = ['USDT-ERC20', 'USDT-TRC20', 'USDC', 'DAI', 'BUSD', 'FRAX', 'LUSD'];
     
     for (const symbol of allTokens) {
       if (tokens.length === 0 || tokens.includes(symbol)) {
@@ -143,7 +141,7 @@ async function handleConfigAPI(req, res) {
       adjustmentFactor: 0.05,
       strategy: 'moderate',
       maxDeviation: 0.1,
-      targetTokens: ['USDT', 'USDC', 'DAI'],
+      targetTokens: ['USDT-ERC20', 'USDT-TRC20', 'USDC', 'DAI'],
       customRpcEnabled: false,
       rpcUrl: `${process.env.URL}/api/rpc`,
       chainId: 9191,
@@ -252,7 +250,7 @@ async function handleSimulationAPI(req, res) {
         parameters: body,
         results: {
           priceAdjustments: Array(5).fill(0).map(() => ({
-            token: 'USDT',
+            token: ['USDT-ERC20', 'USDT-TRC20', 'USDC'][Math.floor(Math.random() * 3)],
             originalPrice: 1.0,
             adjustedPrice: 1.0 + (Math.random() - 0.5) * 0.1,
             adjustment: (Math.random() - 0.5) * 0.1
