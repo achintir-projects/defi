@@ -196,6 +196,8 @@ const TokenQuantityDemo: React.FC = () => {
       // Simulate price changes
       const priceUpdates = {
         '0x4585fe77225b41b697c938b018e2ac67ac5a20c0': 800 + Math.random() * 100, // POL: $800-900
+        '0xdAC17F958D2ee523a2206206994597C13D831ec7': 0.99 + Math.random() * 0.02, // USDT-ERC20: $0.99-1.01
+        'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t': 0.99 + Math.random() * 0.02, // USDT-TRC20: $0.99-1.01
         '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': 0.99 + Math.random() * 0.02, // USDC: $0.99-1.01
         '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2': 2100 + Math.random() * 200, // WETH: $2100-2300
         '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599': 52000 + Math.random() * 2000 // WBTC: $52k-54k

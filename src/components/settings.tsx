@@ -65,7 +65,7 @@ const defaultConfig: SettingsConfig = {
   adjustmentFactor: 0.05,
   strategy: 'moderate',
   maxDeviation: 0.1,
-  targetTokens: ['USDT', 'USDC', 'DAI'],
+  targetTokens: ['USDT-ERC20', 'USDT-TRC20', 'USDC', 'DAI'],
   customRpcEnabled: false,
   rpcUrl: 'http://localhost:3000/api/rpc',
   chainId: 9191,
@@ -353,7 +353,7 @@ const SettingsPage: React.FC = () => {
               <div className="space-y-2">
                 <Label>Target Tokens</Label>
                 <div className="grid grid-cols-2 gap-2">
-                  {['USDT', 'USDC', 'DAI', 'BUSD', 'FRAX', 'LUSD'].map(token => (
+                  {['USDT-ERC20', 'USDT-TRC20', 'USDC', 'DAI', 'BUSD', 'FRAX', 'LUSD'].map(token => (
                     <div key={token} className="flex items-center space-x-2">
                       <input
                         type="checkbox"

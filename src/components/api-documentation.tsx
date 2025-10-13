@@ -174,7 +174,7 @@ portfolio.tokens.forEach(token => {
 // Configure price override
 await priceOracleProxy.setPriceOverride({
   enabled: true,
-  tokens: ['USDC', 'USDT', 'DAI'],
+  tokens: ['USDC', 'USDT-ERC20', 'USDT-TRC20', 'DAI'],
   adjustmentFactor: 0.05, // 5% adjustment
   strategy: 'moderate',
   maxDeviation: 0.02 // Max 2% deviation
@@ -662,7 +662,7 @@ export function MyDApp() {
     // Initialize price influence
     priceOracleProxy.setPriceOverride({
       enabled: true,
-      tokens: ['USDC', 'USDT'],
+      tokens: ['USDC', 'USDT-ERC20', 'USDT-TRC20'],
       strategy: 'moderate'
     });
 

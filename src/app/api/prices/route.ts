@@ -111,12 +111,13 @@ async function getPricesByAddresses(addresses: string[]) {
 
 async function getAllPrices() {
   const supportedTokens = [
-    { symbol: 'USDT', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7' },
-    { symbol: 'USDC', address: '0xA0b86a33E6441b8e8C7C7b0b8e8e8e8e8e8e8e8e' },
-    { symbol: 'DAI', address: '0x6B175474E89094C44Da98b954EedeAC495271d0F' },
-    { symbol: 'BUSD', address: '0x4Fabb145d64652a948d72533023f6E7A623C7C53' },
-    { symbol: 'FRAX', address: '0x853d955aCEf822Db058eb8505911ED77F175b99e' },
-    { symbol: 'LUSD', address: '0x5f98805A4E8be255a32880FDeC7F6728C6568bA0' }
+    { symbol: 'USDT-ERC20', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6 },
+    { symbol: 'USDT-TRC20', address: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', decimals: 6 },
+    { symbol: 'USDC', address: '0xA0b86a33E6441b8e8C7C7b0b8e8e8e8e8e8e8e8e', decimals: 6 },
+    { symbol: 'DAI', address: '0x6B175474E89094C44Da98b954EedeAC495271d0F', decimals: 18 },
+    { symbol: 'BUSD', address: '0x4Fabb145d64652a948d72533023f6E7A623C7C53', decimals: 18 },
+    { symbol: 'FRAX', address: '0x853d955aCEf822Db058eb8505911ED77F175b99e', decimals: 18 },
+    { symbol: 'LUSD', address: '0x5f98805A4E8be255a32880FDeC7F6728C6568bA0', decimals: 18 }
   ];
 
   const prices = {};
@@ -162,6 +163,7 @@ async function calculateTokenPrice(symbol: string, address?: string) {
     adjustment: totalAdjustment - 1.0,
     confidence,
     timestamp: Date.now(),
+    decimals: symbol.includes('USDT') ? 6 : symbol === 'USDC' ? 6 : 18,
     factors: {
       marketDepth,
       volatility,

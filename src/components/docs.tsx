@@ -193,7 +193,7 @@ Network Name: POL Sandbox Network"
                     <CodeBlock 
                       commandId="get-prices"
                       language="bash"
-                      code="GET /api/prices?tokens=USDT,USDC,DAI"
+                      code="GET /api/prices?tokens=USDT-ERC20,USDT-TRC20,USDC,DAI"
                     />
                   </div>
                   
@@ -241,7 +241,7 @@ Content-Type: application/json
   systemEnabled: true,
   priceOverrideEnabled: true,
   adjustmentFactor: 0.05,
-  targetTokens: [USDT, USDC, DAI]
+  targetTokens: [USDT-ERC20, USDT-TRC20, USDC, DAI]
 }"
                     />
                   </div>

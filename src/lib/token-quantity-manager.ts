@@ -58,6 +58,24 @@ class TokenQuantityManager {
           lastUpdated: Date.now()
         },
         {
+          symbol: 'USDT-ERC20',
+          address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+          decimals: 6,
+          balance: '1000000000', // 1000 USDT ERC20
+          formattedBalance: 1000,
+          usdValue: 1000,
+          lastUpdated: Date.now()
+        },
+        {
+          symbol: 'USDT-TRC20',
+          address: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
+          decimals: 6,
+          balance: '2000000000', // 2000 USDT TRC20
+          formattedBalance: 2000,
+          usdValue: 2000,
+          lastUpdated: Date.now()
+        },
+        {
           symbol: 'USDC',
           address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
           decimals: 6,

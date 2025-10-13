@@ -284,7 +284,8 @@ const TokenPriceManager: React.FC = () => {
                       <SelectValue placeholder="Select a token" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="USDT">USDT</SelectItem>
+                      <SelectItem value="USDT-ERC20">USDT (ERC20)</SelectItem>
+                      <SelectItem value="USDT-TRC20">USDT (TRC20)</SelectItem>
                       <SelectItem value="USDC">USDC</SelectItem>
                       <SelectItem value="DAI">DAI</SelectItem>
                       <SelectItem value="BUSD">BUSD</SelectItem>

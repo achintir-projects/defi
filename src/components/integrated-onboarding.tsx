@@ -305,7 +305,8 @@ function WalletSetupStep({
         ...prev,
         address: '0x1234...5678',
         tokens: [
-          { symbol: 'USDT', address: '0x1234...5678', decimals: 6 },
+          { symbol: 'USDT-ERC20', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6 },
+          { symbol: 'USDT-TRC20', address: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', decimals: 6 },
           { symbol: 'BTC', address: '0xabcd...efgh', decimals: 8 },
           { symbol: 'ETH', address: '0x5678...9012', decimals: 18 }
         ]
