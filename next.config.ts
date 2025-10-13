@@ -1,25 +1,26 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   typescript: {
     ignoreBuildErrors: true,
   },
-  // 禁用 Next.js 热重载，由 nodemon 处理重编译
-  reactStrictMode: false,
-  webpack: (config, { dev }) => {
-    if (dev) {
-      // 禁用 webpack 的热模块替换
+  reactStrictMode: true,
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  // Remove problematic webpack configuration for production builds
+  webpack: (config, { dev, isServer }) => {
+    // Only apply watch options in development
+    if (dev && !isServer) {
       config.watchOptions = {
-        ignored: ['**/*'], // 忽略所有文件变化
+        ignored: ['**/node_modules/**', '**/.git/**', '**/.next/**'],
       };
     }
     return config;
   },
-  eslint: {
-    // 构建时忽略ESLint错误
-    ignoreDuringBuilds: true,
-  },
+  // Optimize for production
+  poweredByHeader: false,
+  compress: true,
 };
 
 export default nextConfig;

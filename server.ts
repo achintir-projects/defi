@@ -11,23 +11,26 @@ const hostname = '0.0.0.0';
 // Custom server with Socket.IO integration
 async function createCustomServer() {
   try {
-    // Create Next.js app
+    // Create Next.js app with minimal configuration
     const nextApp = next({ 
       dev,
-      dir: process.cwd(),
-      // In production, use the current directory where .next is located
-      conf: dev ? undefined : { distDir: './.next' }
+      hostname,
+      port: currentPort,
+      dir: process.cwd()
     });
 
     await nextApp.prepare();
     const handle = nextApp.getRequestHandler();
 
-    // Create HTTP server that will handle both Next.js and Socket.IO
-    const server = createServer((req, res) => {
-      // Skip socket.io requests from Next.js handler
+    // Create HTTP server
+    const server = createServer(async (req, res) => {
+      // Handle socket.io requests
       if (req.url?.startsWith('/api/socketio')) {
+        // Let Socket.IO handle these requests
         return;
       }
+      
+      // Handle all other requests with Next.js
       handle(req, res);
     });
 
