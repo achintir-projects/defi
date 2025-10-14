@@ -40,7 +40,8 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
     { id: 'coinbase', name: 'Coinbase Wallet', icon: '🔵', priority: 3 },
     { id: 'walletconnect', name: 'WalletConnect', icon: '🔗', priority: 4 },
     { id: 'phantom', name: 'Phantom', icon: '👻', priority: 5 },
-    { id: 'okx', name: 'OKX Wallet', icon: '⚡', priority: 6 }
+    { id: 'okx', name: 'OKX Wallet', icon: '⚡', priority: 6 },
+    { id: 'bybit', name: 'Bybit Wallet', icon: '🐯', priority: 7 }
   ];
 
   useEffect(() => {
@@ -113,7 +114,7 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
           deepLinkUrl = `metamask://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
           break;
         case 'trustwallet':
-          deepLinkUrl = `trust://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
+          deepLinkUrl = `https://link.trustwallet.com/open_url?coin_id=60&url=${encodeURIComponent(baseUrl + '?data=' + encodeURIComponent(JSON.stringify(connectionData)))}`;
           break;
         case 'coinbase':
           deepLinkUrl = `cbwallet://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
@@ -123,6 +124,9 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
           break;
         case 'okx':
           deepLinkUrl = `okx://wallet/dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
+          break;
+        case 'bybit':
+          deepLinkUrl = `bybitdapp://browser/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
           break;
         case 'walletconnect':
           deepLinkUrl = `wc:${generateWalletConnectURI(connectionData)}`;
@@ -275,11 +279,12 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
     
     const links: Record<string, string> = {
       metamask: isMobile ? `metamask://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://metamask.io/download/',
-      trustwallet: isMobile ? `trust://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://trustwallet.com/download/',
+      trustwallet: isMobile ? `https://link.trustwallet.com/open_url?coin_id=60&url=${encodeURIComponent(baseUrl + '?data=' + encodeURIComponent(JSON.stringify(connectionData)))}` : 'https://trustwallet.com/download/',
       coinbase: isMobile ? `cbwallet://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://www.coinbase.com/wallet',
       walletconnect: `wc:${generateWalletConnectURI(connectionData)}`,
       phantom: isMobile ? `phantom://browse/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://phantom.app/',
-      okx: isMobile ? `okx://wallet/dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://www.okx.com/web3'
+      okx: isMobile ? `okx://wallet/dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://www.okx.com/web3',
+      bybit: isMobile ? `bybitdapp://browser/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://www.bybit.com/en/web3'
     };
     
     return links[walletId] || `${baseUrl}/connect?wallet=${walletId}&auto=true&data=${encodeURIComponent(JSON.stringify(connectionData))}`;

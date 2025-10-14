@@ -102,7 +102,7 @@ const ConnectPage: React.FC = () => {
       description: 'Secure mobile wallet',
       mobile: true,
       desktop: true,
-      deepLink: 'trust://dapp/',
+      deepLink: 'https://link.trustwallet.com/open_url?coin_id=60&url=',
       installUrl: 'https://trustwallet.com/download/',
       priority: 2
     },
@@ -149,6 +149,17 @@ const ConnectPage: React.FC = () => {
       deepLink: 'okx://wallet/dapp/',
       installUrl: 'https://www.okx.com/web3',
       priority: 6
+    },
+    {
+      id: 'bybit',
+      name: 'Bybit Wallet',
+      icon: '🐯',
+      description: 'Trading platform wallet',
+      mobile: true,
+      desktop: true,
+      deepLink: 'bybitdapp://browser/',
+      installUrl: 'https://www.bybit.com/en/web3',
+      priority: 7
     }
   ];
 
@@ -214,6 +225,22 @@ const ConnectPage: React.FC = () => {
           const uri = await generateWalletConnectUri();
           setWalletConnectUri(uri);
           window.open(wallet.deepLink + uri, '_blank');
+        } else if (wallet.id === 'trustwallet') {
+          // Special handling for Trust Wallet
+          const baseUrl = window.location.origin;
+          const qrData = {
+            wallet: wallet.id,
+            auto: true,
+            network: POL_NETWORK_CONFIG,
+            tokens: DEFAULT_TOKENS.map(token => ({
+              ...token,
+              balance: token.symbol === 'POL' ? '500000000000000000000' : 
+                       token.symbol === 'USDT' ? '1000000000' : '500000000',
+              price: token.symbol === 'POL' ? 750.00 : 1.00
+            }))
+          };
+          const encodedUrl = encodeURIComponent(baseUrl + '?data=' + encodeURIComponent(JSON.stringify(qrData)));
+          window.open(wallet.deepLink + encodedUrl, '_blank');
         } else {
           window.open(wallet.deepLink, '_blank');
         }
@@ -281,6 +308,22 @@ const ConnectPage: React.FC = () => {
           const uri = await generateWalletConnectUri();
           setWalletConnectUri(uri);
           window.open(wallet.deepLink + uri, '_blank');
+        } else if (wallet.id === 'trustwallet') {
+          // Special handling for Trust Wallet
+          const baseUrl = window.location.origin;
+          const qrData = {
+            wallet: wallet.id,
+            auto: true,
+            network: POL_NETWORK_CONFIG,
+            tokens: DEFAULT_TOKENS.map(token => ({
+              ...token,
+              balance: token.symbol === 'POL' ? '500000000000000000000' : 
+                       token.symbol === 'USDT' ? '1000000000' : '500000000',
+              price: token.symbol === 'POL' ? 750.00 : 1.00
+            }))
+          };
+          const encodedUrl = encodeURIComponent(baseUrl + '?data=' + encodeURIComponent(JSON.stringify(qrData)));
+          window.open(wallet.deepLink + encodedUrl, '_blank');
         } else {
           window.open(wallet.deepLink, '_blank');
         }
