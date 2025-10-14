@@ -54,14 +54,93 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
 
   const generateConnectionLink = async (walletId: string) => {
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://pol-sandbox.com';
-    const connectUrl = `${baseUrl}/connect?wallet=${walletId}&auto=true`;
     
-    setGeneratedLink(connectUrl);
+    // Create comprehensive wallet connection data
+    const connectionData = {
+      wallet: walletId,
+      auto: true,
+      network: {
+        name: 'POL Sandbox',
+        chainId: '0x539', // 1337 in hex
+        rpcUrls: ['https://rpc.pol-sandbox.com'],
+        nativeCurrency: {
+          name: 'POL',
+          symbol: 'POL',
+          decimals: 18
+        },
+        blockExplorerUrls: ['https://explorer.pol-sandbox.com']
+      },
+      tokens: [
+        {
+          address: '0x4585fe77225b41b697c938b018e2ac67ac5a20c0',
+          symbol: 'POL',
+          name: 'POL Token',
+          decimals: 18,
+          balance: '500000000000000000000', // 500 POL
+          price: 750.00,
+          logoURI: `${baseUrl}/pol-logo.png`
+        },
+        {
+          address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+          symbol: 'USDT',
+          name: 'Tether USD',
+          decimals: 6,
+          balance: '1000000000', // 1000 USDT
+          price: 1.00,
+          logoURI: `${baseUrl}/usdt-logo.png`
+        },
+        {
+          address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+          balance: '500000000', // 500 USDC
+          price: 1.00,
+          logoURI: `${baseUrl}/usdc-logo.png`
+        }
+      ],
+      timestamp: Date.now(),
+      version: '1.0'
+    };
+
+    // Generate wallet-specific deep links
+    let deepLinkUrl = '';
+    
+    if (isMobile) {
+      // Mobile deep linking based on wallet
+      switch (walletId) {
+        case 'metamask':
+          deepLinkUrl = `metamask://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
+          break;
+        case 'trustwallet':
+          deepLinkUrl = `trust://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
+          break;
+        case 'coinbase':
+          deepLinkUrl = `cbwallet://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
+          break;
+        case 'phantom':
+          deepLinkUrl = `phantom://browse/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
+          break;
+        case 'okx':
+          deepLinkUrl = `okx://wallet/dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
+          break;
+        case 'walletconnect':
+          deepLinkUrl = `wc:${generateWalletConnectURI(connectionData)}`;
+          break;
+        default:
+          deepLinkUrl = `${baseUrl}/connect?wallet=${walletId}&auto=true&data=${encodeURIComponent(JSON.stringify(connectionData))}`;
+      }
+    } else {
+      // Desktop fallback
+      deepLinkUrl = `${baseUrl}/connect?wallet=${walletId}&auto=true&data=${encodeURIComponent(JSON.stringify(connectionData))}`;
+    }
+    
+    setGeneratedLink(deepLinkUrl);
     
     // Generate real QR code
     setQrCodeLoading(true);
     try {
-      const qrDataUrl = await QRCodeLib.toDataURL(connectUrl, {
+      const qrDataUrl = await QRCodeLib.toDataURL(deepLinkUrl, {
         width: 256,
         margin: 2,
         color: {
@@ -77,7 +156,7 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
         <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
           <rect width="200" height="200" fill="white"/>
           <text x="100" y="100" text-anchor="middle" font-size="12">QR Code for ${walletId}</text>
-          <text x="100" y="120" text-anchor="middle" font-size="8">${connectUrl.substring(0, 30)}...</text>
+          <text x="100" y="120" text-anchor="middle" font-size="8">${deepLinkUrl.substring(0, 30)}...</text>
         </svg>
       `)}`;
       setQrCode(mockQrDataUrl);
@@ -89,6 +168,24 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
   const handleWalletChange = (walletId: string) => {
     setSelectedWallet(walletId);
     generateConnectionLink(walletId);
+  };
+
+  const generateWalletConnectURI = (data: any): string => {
+    // Generate WalletConnect URI for deep linking
+    const wcData = {
+      topic: 'pol-sandbox-' + Date.now(),
+      version: 2,
+      symKey: 'x'.repeat(64), // Mock symmetric key
+      relay: { protocol: 'irn' },
+      client: {
+        rpcUrl: typeof window !== 'undefined' ? window.location.origin : 'https://pol-sandbox.com',
+        methods: ['eth_sign', 'eth_signTransaction', 'eth_sendTransaction', 'personal_sign'],
+        events: ['accountsChanged', 'chainChanged']
+      },
+      data: data
+    };
+    
+    return btoa(JSON.stringify(wcData)).substring(0, 100);
   };
 
   const downloadQRCode = () => {
@@ -144,16 +241,48 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
   };
 
   const getDirectWalletLink = (walletId: string): string => {
-    const links: Record<string, string> = {
-      metamask: isMobile ? 'metamask://dapp/?url=' : 'https://metamask.io/download/',
-      trustwallet: isMobile ? 'trust://dapp/?url=' : 'https://trustwallet.com/download/',
-      coinbase: isMobile ? 'cbwallet://dapp/?url=' : 'https://www.coinbase.com/wallet',
-      walletconnect: 'wc:',
-      phantom: isMobile ? 'phantom://browse/?url=' : 'https://phantom.app/',
-      okx: isMobile ? 'okx://wallet/dapp/?url=' : 'https://www.okx.com/web3'
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://pol-sandbox.com';
+    
+    // Create connection data for direct linking
+    const connectionData = {
+      wallet: walletId,
+      auto: true,
+      network: {
+        name: 'POL Sandbox',
+        chainId: '0x539',
+        rpcUrls: ['https://rpc.pol-sandbox.com'],
+        nativeCurrency: {
+          name: 'POL',
+          symbol: 'POL',
+          decimals: 18
+        }
+      },
+      tokens: [
+        {
+          address: '0x4585fe77225b41b697c938b018e2ac67ac5a20c0',
+          symbol: 'POL',
+          balance: '500000000000000000000',
+          price: 750.00
+        },
+        {
+          address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+          symbol: 'USDT',
+          balance: '1000000000',
+          price: 1.00
+        }
+      ]
     };
     
-    return links[walletId] + encodeURIComponent(generatedLink);
+    const links: Record<string, string> = {
+      metamask: isMobile ? `metamask://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://metamask.io/download/',
+      trustwallet: isMobile ? `trust://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://trustwallet.com/download/',
+      coinbase: isMobile ? `cbwallet://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://www.coinbase.com/wallet',
+      walletconnect: `wc:${generateWalletConnectURI(connectionData)}`,
+      phantom: isMobile ? `phantom://browse/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://phantom.app/',
+      okx: isMobile ? `okx://wallet/dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://www.okx.com/web3'
+    };
+    
+    return links[walletId] || `${baseUrl}/connect?wallet=${walletId}&auto=true&data=${encodeURIComponent(JSON.stringify(connectionData))}`;
   };
 
   if (compact) {

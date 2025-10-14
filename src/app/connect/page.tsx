@@ -160,12 +160,89 @@ const ConnectPage: React.FC = () => {
     };
     checkMobile();
 
+    // Parse URL parameters for QR code data
+    parseUrlParameters();
+
     // Check for existing connection
     checkExistingConnection();
 
     // Auto-detect wallets
     detectWallets();
   }, []);
+
+  const parseUrlParameters = () => {
+    if (typeof window === 'undefined') return;
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const wallet = urlParams.get('wallet');
+    const auto = urlParams.get('auto');
+    const data = urlParams.get('data');
+    
+    if (wallet && auto === 'true' && data) {
+      try {
+        const connectionData = JSON.parse(decodeURIComponent(data));
+        console.log('Received connection data from QR code:', connectionData);
+        
+        // Auto-connect with the provided data
+        autoConnectWithQRData(connectionData);
+      } catch (error) {
+        console.error('Failed to parse QR code data:', error);
+        setError('Invalid QR code data. Please try scanning again.');
+      }
+    }
+  };
+
+  const autoConnectWithQRData = async (connectionData: any) => {
+    const walletId = connectionData.wallet;
+    const wallet = walletOptions.find(w => w.id === walletId);
+    
+    if (!wallet) {
+      setError('Unsupported wallet specified in QR code');
+      return;
+    }
+
+    setSelectedWallet(wallet);
+    setStep('connecting');
+    setLoading(wallet.id);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      // For mobile, try deep link first
+      if (isMobile && wallet.deepLink) {
+        if (wallet.id === 'walletconnect') {
+          const uri = await generateWalletConnectUri();
+          setWalletConnectUri(uri);
+          window.open(wallet.deepLink + uri, '_blank');
+        } else {
+          window.open(wallet.deepLink, '_blank');
+        }
+        
+        // Wait a moment for the wallet to open
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+
+      // Try to connect via browser extension
+      const state = await universalWalletConnector.connect(wallet.id);
+      setConnectionState(state);
+      
+      // Auto-setup network and tokens with QR data
+      await setupWalletWithQRData(state, connectionData);
+      
+    } catch (error) {
+      console.error('Auto-connection failed:', error);
+      setError(`Failed to auto-connect to ${wallet.name}. Please try connecting manually.`);
+      
+      // Fallback: redirect to installation
+      if (!isMobile) {
+        setTimeout(() => {
+          window.open(wallet.installUrl, '_blank');
+        }, 2000);
+      }
+    } finally {
+      setLoading(null);
+    }
+  };
 
   const detectWallets = async () => {
     try {
@@ -248,6 +325,40 @@ const ConnectPage: React.FC = () => {
     return `wc:${Math.random().toString(36).substring(2, 15)}@2?relay-protocol=irn&symKey=${Math.random().toString(36).substring(2, 15)}`;
   };
 
+  const setupWalletWithQRData = async (state: WalletConnectionState, connectionData: any) => {
+    setStep('setup');
+    setSuccess('Wallet connected! Configuring POL Sandbox network with preset data...');
+
+    try {
+      // Add POL Sandbox network from QR data or default
+      const networkConfig = connectionData.network || POL_NETWORK_CONFIG;
+      await addCustomNetwork(networkConfig);
+      
+      // Add tokens from QR data with preset balances
+      if (connectionData.tokens && connectionData.tokens.length > 0) {
+        await addTokensWithBalances(connectionData.tokens);
+      } else {
+        await addDefaultTokens();
+      }
+      
+      // Switch to POL network
+      await switchToCustomNetwork(networkConfig);
+      
+      // Store the preset balances and prices in local storage for the app to use
+      if (connectionData.tokens) {
+        localStorage.setItem('pol-sandbox-tokens', JSON.stringify(connectionData.tokens));
+      }
+      
+      setSuccess('🎉 Successfully connected to POL Sandbox! Network and tokens with preset balances have been configured.');
+      setStep('complete');
+      
+    } catch (error) {
+      console.error('Setup failed:', error);
+      setError('Connected wallet, but failed to setup network. Please add POL Sandbox manually.');
+      setStep('complete');
+    }
+  };
+
   const setupWallet = async (state: WalletConnectionState) => {
     setStep('setup');
     setSuccess('Wallet connected! Setting up POL Sandbox network...');
@@ -272,6 +383,21 @@ const ConnectPage: React.FC = () => {
     }
   };
 
+  const addCustomNetwork = async (networkConfig: any) => {
+    try {
+      // Check if wallet has ethereum provider
+      if (window.ethereum) {
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [networkConfig]
+        });
+      }
+    } catch (error) {
+      console.error('Failed to add custom network:', error);
+      throw error;
+    }
+  };
+
   const addPOLNetwork = async () => {
     try {
       // Check if wallet has ethereum provider
@@ -284,6 +410,24 @@ const ConnectPage: React.FC = () => {
     } catch (error) {
       console.error('Failed to add network:', error);
       throw error;
+    }
+  };
+
+  const switchToCustomNetwork = async (networkConfig: any) => {
+    try {
+      if (window.ethereum) {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: networkConfig.chainId }]
+        });
+      }
+    } catch (error) {
+      console.error('Failed to switch network:', error);
+      // If network doesn't exist, add it first
+      if (error.code === 4902) {
+        await addCustomNetwork(networkConfig);
+        await switchToCustomNetwork(networkConfig);
+      }
     }
   };
 
@@ -302,6 +446,36 @@ const ConnectPage: React.FC = () => {
         await addPOLNetwork();
         await switchToPOLNetwork();
       }
+    }
+  };
+
+  const addTokensWithBalances = async (tokens: any[]) => {
+    try {
+      if (window.ethereum) {
+        for (const token of tokens) {
+          await window.ethereum.request({
+            method: 'wallet_watchAsset',
+            params: {
+              type: 'ERC20',
+              options: {
+                address: token.address,
+                symbol: token.symbol,
+                decimals: token.decimals,
+                image: token.logoURI
+              }
+            }
+          });
+          
+          // Store the preset balance and price for this wallet
+          const walletAddress = connectionState.account;
+          if (walletAddress) {
+            await storeTokenBalance(walletAddress, token);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to add tokens with balances:', error);
+      // Don't throw error for tokens, as network setup is more important
     }
   };
 
@@ -326,6 +500,29 @@ const ConnectPage: React.FC = () => {
     } catch (error) {
       console.error('Failed to add tokens:', error);
       // Don't throw error for tokens, as network setup is more important
+    }
+  };
+
+  const storeTokenBalance = async (walletAddress: string, token: any) => {
+    try {
+      // Store the preset balance and price via API
+      await fetch('/api/wallet/balance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          walletAddress,
+          symbol: token.symbol,
+          chain: 'POL Sandbox',
+          balance: token.balance,
+          price: token.price,
+          action: 'add',
+          preset: true // Mark as preset from QR code
+        })
+      });
+    } catch (error) {
+      console.error('Failed to store token balance:', error);
     }
   };
 

@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { walletAddress, symbol, chain, balance, price, action } = await request.json();
+    const { walletAddress, symbol, chain, balance, price, action, preset, address, decimals } = await request.json();
 
     if (!walletAddress || !symbol || !chain) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -111,14 +111,19 @@ export async function POST(request: NextRequest) {
         balance,
         price: tokenPrice,
         value: tokenValue,
-        address: symbol === 'USDT' ? '0xdAC17F958D2ee523a2206206994597C13D831ec7' :
-                symbol === 'USDC' ? '0xA0b86a33E6441b8e8C7C7b0b8e8e8e8e8e8e8e8e' :
-                '0x455e53C31b987D3f18d6d7DdF5D6932bE9C80902',
-        decimals: symbol === 'POL' ? 18 : 6
+        address: address || (symbol === 'USDT' ? '0xdAC17F958D2ee523a2206206994597C13D831ec7' :
+                        symbol === 'USDC' ? '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' :
+                        symbol === 'POL' ? '0x4585fe77225b41b697c938b018e2ac67ac5a20c0' :
+                        '0x455e53C31b987D3f18d6d7DdF5D6932bE9C80902'),
+        decimals: decimals || (symbol === 'POL' ? 18 : 6),
+        preset: preset || false // Mark if this is a preset from QR code
       };
 
       if (existingTokenIndex !== -1) {
-        MOCK_WALLET_BALANCES[walletAddress][existingTokenIndex] = tokenData;
+        MOCK_WALLET_BALANCES[walletAddress][existingTokenIndex] = {
+          ...MOCK_WALLET_BALANCES[walletAddress][existingTokenIndex],
+          ...tokenData
+        };
       } else {
         MOCK_WALLET_BALANCES[walletAddress].push(tokenData);
       }
@@ -132,7 +137,8 @@ export async function POST(request: NextRequest) {
       walletAddress,
       balances: MOCK_WALLET_BALANCES[walletAddress],
       totalValue,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
+      preset: preset || false
     });
   } catch (error) {
     console.error('Error updating wallet balance:', error);
