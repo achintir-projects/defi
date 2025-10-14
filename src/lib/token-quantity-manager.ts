@@ -180,6 +180,58 @@ class TokenQuantityManager {
   // Add new token to wallet
   public addTokenToWallet(
     walletAddress: string,
+    tokenAddress: string,
+    symbol: string,
+    decimals: number,
+    balance: string,
+    price: number
+  ): void {
+    let walletData = this.balances.get(walletAddress);
+    
+    if (!walletData) {
+      walletData = {
+        address: walletAddress,
+        tokens: [],
+        totalValue: 0,
+        lastSync: Date.now()
+      };
+      this.balances.set(walletAddress, walletData);
+    }
+
+    const formattedBalance = parseFloat(balance) / Math.pow(10, decimals);
+    const usdValue = formattedBalance * price;
+
+    const newToken: TokenBalance = {
+      symbol,
+      address: tokenAddress,
+      decimals,
+      balance,
+      formattedBalance,
+      usdValue,
+      lastUpdated: Date.now()
+    };
+
+    const existingTokenIndex = walletData.tokens.findIndex(t => t.address === tokenAddress);
+    
+    if (existingTokenIndex >= 0) {
+      // Update existing token
+      walletData.tokens[existingTokenIndex] = newToken;
+    } else {
+      // Add new token
+      walletData.tokens.push(newToken);
+    }
+
+    // Recalculate total value
+    walletData.totalValue = walletData.tokens.reduce((sum, token) => sum + token.usdValue, 0);
+    walletData.lastSync = Date.now();
+
+    // Notify callbacks
+    this.notifyCallbacks(walletData);
+  }
+
+  // Legacy method for backward compatibility
+  public addTokenObjectToWallet(
+    walletAddress: string,
     token: Omit<TokenBalance, 'lastUpdated'>
   ): void {
     let walletData = this.balances.get(walletAddress);

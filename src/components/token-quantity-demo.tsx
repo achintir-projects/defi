@@ -130,7 +130,8 @@ const TokenQuantityDemo: React.FC<TokenQuantityDemoProps> = ({ connectionState }
   useEffect(() => {
     loadWalletData();
     
-    // Auto-detect if we're on Netlify and switch to polling
+    // Only auto-detect Netlify environment if explicitly needed
+    // For local development, keep WebSocket as default
     if (typeof window !== 'undefined') {
       const isNetlify = window.location.hostname.includes('netlify.app') || 
                        process.env.NEXT_PUBLIC_DEPLOYMENT_PLATFORM === 'netlify';
@@ -139,6 +140,11 @@ const TokenQuantityDemo: React.FC<TokenQuantityDemoProps> = ({ connectionState }
         console.log('Netlify environment detected, switching to polling mode');
         setUsePolling(true);
         setRealTimeUpdates(false);
+      } else {
+        // For local development, prefer WebSocket
+        console.log('Local environment detected, using WebSocket mode');
+        setUsePolling(false);
+        setRealTimeUpdates(true);
       }
     }
   }, []);

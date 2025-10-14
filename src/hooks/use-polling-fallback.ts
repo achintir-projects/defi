@@ -43,6 +43,19 @@ export const usePollingFallback = (options: UsePollingOptions = {}) => {
   const fetchData = useCallback(async () => {
     try {
       const response = await fetch('/api/quantities?action=all');
+      
+      // Check if response is OK and content type is JSON
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Received non-JSON response:', text.substring(0, 200));
+        throw new Error('Received HTML response instead of JSON');
+      }
+      
       const result = await response.json();
       
       if (result.success) {
