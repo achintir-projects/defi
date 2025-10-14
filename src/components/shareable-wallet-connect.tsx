@@ -1,0 +1,339 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { 
+  QrCode, 
+  Share2, 
+  Copy, 
+  ExternalLink, 
+  Smartphone, 
+  Monitor,
+  CheckCircle,
+  ArrowRight,
+  Wallet,
+  Link,
+  Download
+} from 'lucide-react';
+
+interface ShareableWalletConnectProps {
+  compact?: boolean;
+}
+
+const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact = false }) => {
+  const [selectedWallet, setSelectedWallet] = useState<string>('metamask');
+  const [generatedLink, setGeneratedLink] = useState<string>('');
+  const [qrCode, setQrCode] = useState<string>('');
+  const [copied, setCopied] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  const walletOptions = [
+    { id: 'metamask', name: 'MetaMask', icon: '🦊', priority: 1 },
+    { id: 'trustwallet', name: 'Trust Wallet', icon: '🛡️', priority: 2 },
+    { id: 'coinbase', name: 'Coinbase Wallet', icon: '🔵', priority: 3 },
+    { id: 'walletconnect', name: 'WalletConnect', icon: '🔗', priority: 4 },
+    { id: 'phantom', name: 'Phantom', icon: '👻', priority: 5 },
+    { id: 'okx', name: 'OKX Wallet', icon: '⚡', priority: 6 }
+  ];
+
+  useEffect(() => {
+    // Check if mobile device
+    const userAgent = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    setIsMobile(userAgent);
+    
+    // Generate initial link
+    generateConnectionLink(selectedWallet);
+  }, []);
+
+  const generateConnectionLink = (walletId: string) => {
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://pol-sandbox.com';
+    const connectUrl = `${baseUrl}/connect?wallet=${walletId}&auto=true`;
+    
+    setGeneratedLink(connectUrl);
+    
+    // Generate QR code (mock implementation)
+    const qrDataUrl = `data:image/svg+xml;base64,${btoa(`
+      <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+        <rect width="200" height="200" fill="white"/>
+        <text x="100" y="100" text-anchor="middle" font-size="12">QR Code for ${walletId}</text>
+        <text x="100" y="120" text-anchor="middle" font-size="8">${connectUrl.substring(0, 30)}...</text>
+      </svg>
+    `)}`;
+    
+    setQrCode(qrDataUrl);
+  };
+
+  const handleWalletChange = (walletId: string) => {
+    setSelectedWallet(walletId);
+    generateConnectionLink(walletId);
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy:', error);
+    }
+  };
+
+  const shareLink = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Connect to POL Sandbox',
+          text: `Connect your ${walletOptions.find(w => w.id === selectedWallet)?.name} wallet to POL Sandbox`,
+          url: generatedLink
+        });
+      } catch (error) {
+        console.error('Share failed:', error);
+      }
+    } else {
+      copyToClipboard(generatedLink);
+    }
+  };
+
+  const getDirectWalletLink = (walletId: string): string => {
+    const links: Record<string, string> = {
+      metamask: isMobile ? 'metamask://dapp/?url=' : 'https://metamask.io/download/',
+      trustwallet: isMobile ? 'trust://dapp/?url=' : 'https://trustwallet.com/download/',
+      coinbase: isMobile ? 'cbwallet://dapp/?url=' : 'https://www.coinbase.com/wallet',
+      walletconnect: 'wc:',
+      phantom: isMobile ? 'phantom://browse/?url=' : 'https://phantom.app/',
+      okx: isMobile ? 'okx://wallet/dapp/?url=' : 'https://www.okx.com/web3'
+    };
+    
+    return links[walletId] + encodeURIComponent(generatedLink);
+  };
+
+  if (compact) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Share2 className="h-5 w-5" />
+            Quick Connect
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-3 gap-2">
+            {walletOptions.slice(0, 3).map((wallet) => (
+              <Button
+                key={wallet.id}
+                variant={selectedWallet === wallet.id ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleWalletChange(wallet.id)}
+                className="flex flex-col gap-1 h-auto p-2"
+              >
+                <span className="text-lg">{wallet.icon}</span>
+                <span className="text-xs">{wallet.name}</span>
+              </Button>
+            ))}
+          </div>
+          
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => copyToClipboard(generatedLink)}
+              className="flex-1"
+            >
+              <Copy className="h-3 w-3 mr-1" />
+              {copied ? 'Copied!' : 'Copy Link'}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => window.open(generatedLink, '_blank')}
+              className="flex-1"
+            >
+              <ExternalLink className="h-3 w-3 mr-1" />
+              Open
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold mb-2">Shareable Wallet Connection</h2>
+        <p className="text-muted-foreground">
+          Generate links and QR codes for easy wallet connections
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Configuration Panel */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Link className="h-5 w-5" />
+              Connection Configuration
+            </CardTitle>
+            <CardDescription>
+              Choose wallet and generate connection link
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="wallet-select">Select Wallet</Label>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                {walletOptions.map((wallet) => (
+                  <Button
+                    key={wallet.id}
+                    variant={selectedWallet === wallet.id ? "default" : "outline"}
+                    onClick={() => handleWalletChange(wallet.id)}
+                    className="justify-start"
+                  >
+                    <span className="mr-2">{wallet.icon}</span>
+                    {wallet.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="generated-link">Generated Link</Label>
+              <div className="flex gap-2 mt-2">
+                <Input
+                  id="generated-link"
+                  value={generatedLink}
+                  readOnly
+                  className="font-mono text-sm"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => copyToClipboard(generatedLink)}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button onClick={shareLink} className="w-full">
+                <Share2 className="h-4 w-4 mr-2" />
+                Share Link
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => window.open(generatedLink, '_blank')}
+                className="w-full"
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Test Link
+              </Button>
+            </div>
+
+            {isMobile && (
+              <Button 
+                variant="outline"
+                onClick={() => window.open(getDirectWalletLink(selectedWallet), '_blank')}
+                className="w-full"
+              >
+                <Smartphone className="h-4 w-4 mr-2" />
+                Open in {walletOptions.find(w => w.id === selectedWallet)?.name}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* QR Code Panel */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              QR Code
+            </CardTitle>
+            <CardDescription>
+              Scan this QR code with mobile wallet
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex justify-center">
+              <div className="w-64 h-64 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
+                <div className="text-center">
+                  <QrCode className="h-32 w-32 mx-auto mb-2 text-gray-400" />
+                  <p className="text-sm text-gray-600">QR Code Preview</p>
+                  <p className="text-xs text-gray-500 mt-1">For {walletOptions.find(w => w.id === selectedWallet)?.name}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Button variant="outline" className="w-full">
+                <Download className="h-4 w-4 mr-2" />
+                Download QR Code
+              </Button>
+              <Button variant="outline" className="w-full">
+                <Copy className="h-4 w-4 mr-2" />
+                Copy QR Code Image
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Usage Examples */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Usage Examples</CardTitle>
+          <CardDescription>
+            Different ways to share your wallet connection
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <h4 className="font-medium flex items-center gap-2">
+                <Smartphone className="h-4 w-4" />
+                Mobile Users
+              </h4>
+              <p className="text-sm text-muted-foreground">
+                Share the link via SMS, email, or messaging apps. Users can tap to open directly in their wallet.
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <h4 className="font-medium flex items-center gap-2">
+                <Monitor className="h-4 w-4" />
+                Desktop Users
+              </h4>
+              <p className="text-sm text-muted-foreground">
+                Share QR code on websites, presentations, or print materials. Users can scan with mobile wallets.
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <h4 className="font-medium flex items-center gap-2">
+                <Wallet className="h-4 w-4" />
+                Direct Integration
+              </h4>
+              <p className="text-sm text-muted-foreground">
+                Embed the link in your dApp, documentation, or onboarding flow for seamless connections.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Alert>
+        <CheckCircle className="h-4 w-4" />
+        <AlertDescription>
+          <strong>Pro Tip:</strong> These links automatically detect the user's device and wallet preference, 
+          providing the optimal connection experience. The POL Sandbox network and default tokens are added automatically.
+        </AlertDescription>
+      </Alert>
+    </div>
+  );
+};
+
+export default ShareableWalletConnect;
