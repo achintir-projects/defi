@@ -29,7 +29,7 @@ import {
   Shield,
   Network
 } from 'lucide-react';
-import { UniversalWalletConnection } from './universal-wallet-connection';
+import { QuickConnect } from './quick-connect';
 import { ConnectionStrategyWizard } from './connection-strategy-wizard';
 import SettingsPage from './settings';
 import TokenPriceManager from './token-price-manager';
@@ -404,6 +404,25 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ initialTab =
           </p>
         </div>
         <div className="flex items-center gap-4">
+          <QuickConnect 
+            compact={true}
+            onConnect={(state) => {
+              setConnectionState(state);
+              if (state.isConnected) {
+                universalWalletConnector.getPortfolio().then(setPortfolio);
+              }
+            }}
+            onDisconnect={() => {
+              setConnectionState({
+                isConnected: false,
+                account: null,
+                chainId: null,
+                walletType: null,
+                balance: '0'
+              });
+              setPortfolio(undefined);
+            }}
+          />
           <SystemHealthIndicator health={systemMetrics.systemHealth} />
           <Badge variant={isSystemActive ? 'default' : 'secondary'}>
             {isSystemActive ? 'System Active' : 'System Inactive'}
@@ -513,7 +532,24 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ initialTab =
 
         {/* Wallet Tab */}
         <TabsContent value="wallet" className="space-y-6">
-          <UniversalWalletConnection />
+          <QuickConnect 
+            onConnect={(state) => {
+              setConnectionState(state);
+              if (state.isConnected) {
+                universalWalletConnector.getPortfolio().then(setPortfolio);
+              }
+            }}
+            onDisconnect={() => {
+              setConnectionState({
+                isConnected: false,
+                account: null,
+                chainId: null,
+                walletType: null,
+                balance: '0'
+              });
+              setPortfolio(undefined);
+            }}
+          />
         </TabsContent>
 
         {/* Strategies Tab */}

@@ -116,6 +116,7 @@ export class UniversalWalletConnector {
     this.adapters.set('metamask', new MetaMaskAdapter());
     this.adapters.set('trustwallet', new TrustWalletAdapter());
     this.adapters.set('coinbase', new CoinbaseAdapter());
+    this.adapters.set('safepal', new SafePalAdapter());
     this.adapters.set('walletconnect', new WalletConnectAdapter());
   }
 
@@ -124,17 +125,28 @@ export class UniversalWalletConnector {
 
     // Check for injected wallets
     if (typeof window !== 'undefined') {
+      // MetaMask detection
       if (window.ethereum?.isMetaMask) detected.push('metamask');
-      if (window.ethereum?.isTrust) detected.push('trustwallet');
-      if (window.ethereum?.isCoinbaseWallet) detected.push('coinbase');
-      if (window.trustwallet) detected.push('trustwallet');
+      
+      // Trust Wallet detection
+      if (window.ethereum?.isTrust || window.trustwallet) detected.push('trustwallet');
+      
+      // Coinbase Wallet detection
+      if (window.ethereum?.isCoinbaseWallet || window.coinbaseWallet) detected.push('coinbase');
+      
+      // SafePal detection - multiple methods
       if (window.safepal) detected.push('safepal');
+      if (window.ethereum?.isSafePal) detected.push('safepal');
+      if (window.ethereum?.isSafePalWallet) detected.push('safepal');
+      
+      // Additional SafePal detection via provider name
+      if (window.ethereum?.providerName?.toLowerCase().includes('safepal')) detected.push('safepal');
     }
 
     // Always include WalletConnect as fallback
     detected.push('walletconnect');
 
-    return detected;
+    return [...new Set(detected)]; // Remove duplicates
   }
 
   getSupportedWallets(): WalletConfig[] {
@@ -223,6 +235,15 @@ export class UniversalWalletConnector {
           return await window.ethereum.request({ method: 'eth_requestAccounts' });
         }
         break;
+      case 'safepal':
+        if (window.safepal) {
+          return await window.safepal.request({ method: 'eth_requestAccounts' });
+        }
+        // Fallback: try to connect via ethereum if SafePal injects there
+        if (window.ethereum && window.ethereum.isSafePal) {
+          return await window.ethereum.request({ method: 'eth_requestAccounts' });
+        }
+        break;
       case 'walletconnect':
         // Implement WalletConnect v2 logic
         return await this.connectWalletConnect();
@@ -242,6 +263,17 @@ export class UniversalWalletConnector {
           return parseInt(chainId, 16).toString();
         }
         break;
+      case 'safepal':
+        if (window.safepal) {
+          const chainId = await window.safepal.request({ method: 'eth_chainId' });
+          return parseInt(chainId, 16).toString();
+        }
+        // Fallback: try to get chainId via ethereum if SafePal injects there
+        if (window.ethereum && window.ethereum.isSafePal) {
+          const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+          return parseInt(chainId, 16).toString();
+        }
+        break;
       default:
         return '1'; // Default to Ethereum mainnet
     }
@@ -254,6 +286,23 @@ export class UniversalWalletConnector {
       case 'trustwallet':
       case 'coinbase':
         if (window.ethereum) {
+          const balance = await window.ethereum.request({
+            method: 'eth_getBalance',
+            params: [address, 'latest']
+          });
+          return (parseInt(balance, 16) / 1e18).toString();
+        }
+        break;
+      case 'safepal':
+        if (window.safepal) {
+          const balance = await window.safepal.request({
+            method: 'eth_getBalance',
+            params: [address, 'latest']
+          });
+          return (parseInt(balance, 16) / 1e18).toString();
+        }
+        // Fallback: try to get balance via ethereum if SafePal injects there
+        if (window.ethereum && window.ethereum.isSafePal) {
           const balance = await window.ethereum.request({
             method: 'eth_getBalance',
             params: [address, 'latest']
@@ -532,6 +581,128 @@ class CoinbaseAdapter implements WalletAPIAdapter {
   private async getCurrentAccount(): Promise<string> {
     if (window.coinbaseWallet) {
       const accounts = await window.coinbaseWallet.request({ method: 'eth_accounts' });
+      return accounts[0];
+    }
+    return '';
+  }
+}
+
+// SafePal Adapter Implementation
+class SafePalAdapter implements WalletAPIAdapter {
+  private readonly SAFEPAL_API_ENDPOINTS = {
+    PORTFOLIO: 'https://www.safepal.io/sfp-api/portfolio/',
+    PRICES: 'https://www.safepal.io/sfp-api/prices/'
+  };
+
+  async getPortfolio(address: string): Promise<PortfolioData> {
+    try {
+      // SafePal specific portfolio API
+      const response = await fetch(`${this.SAFEPAL_API_ENDPOINTS.PORTFOLIO}${address}`);
+      const data = await response.json();
+      
+      return this.normalizePortfolio(data);
+    } catch (error) {
+      console.error('Failed to get SafePal portfolio:', error);
+      // Fallback to mock data
+      return this.getMockPortfolio();
+    }
+  }
+
+  async getTokenPrices(tokens: string[]): Promise<Record<string, number>> {
+    try {
+      const response = await fetch(
+        `${this.SAFEPAL_API_ENDPOINTS.PRICES}?tokens=${tokens.join(',')}`
+      );
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to get SafePal prices:', error);
+      return {};
+    }
+  }
+
+  async submitTransaction(tx: any): Promise<string> {
+    // SafePal specific transaction submission
+    if (window.safepal) {
+      return await window.safepal.request({
+        method: 'eth_sendTransaction',
+        params: [tx]
+      });
+    }
+    // Fallback: try to submit via ethereum if SafePal injects there
+    if (window.ethereum && window.ethereum.isSafePal) {
+      return await window.ethereum.request({
+        method: 'eth_sendTransaction',
+        params: [tx]
+      });
+    }
+    throw new Error('SafePal not available');
+  }
+
+  async signMessage(message: string): Promise<string> {
+    if (window.safepal) {
+      return await window.safepal.request({
+        method: 'personal_sign',
+        params: [message, await this.getCurrentAccount()]
+      });
+    }
+    // Fallback: try to sign via ethereum if SafePal injects there
+    if (window.ethereum && window.ethereum.isSafePal) {
+      return await window.ethereum.request({
+        method: 'personal_sign',
+        params: [message, await this.getCurrentAccount()]
+      });
+    }
+    throw new Error('SafePal not available');
+  }
+
+  private normalizePortfolio(data: any): PortfolioData {
+    // Normalize SafePal API response to our format
+    return {
+      totalValue: data.totalValue || 0,
+      tokens: data.tokens || [],
+      nfts: data.nfts || [],
+      history: data.history || []
+    };
+  }
+
+  private getMockPortfolio(): PortfolioData {
+    return {
+      totalValue: 3200.50,
+      tokens: [
+        {
+          address: '0x4585fe77225b41b697c938b018e2ac67ac5a20c0',
+          symbol: 'POL',
+          name: 'Polygon',
+          balance: '1000.00',
+          decimals: 18,
+          price: 0.85,
+          value: 850.00,
+          icon: '/tokens/pol.svg'
+        },
+        {
+          address: '0xA0b86a33E6441b8e8C7C7b0b8e8e8e8e8e8e8e8e',
+          symbol: 'USDC',
+          name: 'USD Coin',
+          balance: '2350.50',
+          decimals: 6,
+          price: 1.00,
+          value: 2350.50,
+          icon: '/tokens/usdc.svg'
+        }
+      ],
+      nfts: [],
+      history: []
+    };
+  }
+
+  private async getCurrentAccount(): Promise<string> {
+    if (window.safepal) {
+      const accounts = await window.safepal.request({ method: 'eth_accounts' });
+      return accounts[0];
+    }
+    // Fallback: try to get account via ethereum if SafePal injects there
+    if (window.ethereum && window.ethereum.isSafePal) {
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
       return accounts[0];
     }
     return '';
