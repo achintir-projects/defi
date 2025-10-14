@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Wallet, TrendingUp, ArrowRight, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { useQuantityWebSocket } from '@/hooks/use-quantity-websocket';
+import { usePollingFallback } from '@/hooks/use-polling-fallback';
 
 interface TokenBalance {
   symbol: string;
@@ -34,6 +35,7 @@ const TokenQuantityDemo: React.FC = () => {
   const [selectedWallet, setSelectedWallet] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [realTimeUpdates, setRealTimeUpdates] = useState<boolean>(true);
+  const [usePolling, setUsePolling] = useState<boolean>(false);
   const [transferData, setTransferData] = useState({
     toWallet: '',
     tokenAddress: '',
@@ -51,7 +53,7 @@ const TokenQuantityDemo: React.FC = () => {
   const {
     isConnected: wsConnected,
     connectionError: wsError,
-    lastUpdate,
+    lastUpdate: wsLastUpdate,
     connect: wsConnect,
     disconnect: wsDisconnect,
     registerWallet,
@@ -59,7 +61,7 @@ const TokenQuantityDemo: React.FC = () => {
     updatePrice: wsUpdatePrice
   } = useQuantityWebSocket({
     walletAddress: selectedWallet,
-    autoConnect: realTimeUpdates,
+    autoConnect: realTimeUpdates && !usePolling,
     onBalanceUpdate: (data) => {
       console.log('Real-time balance update:', data);
       if (data.data?.balances) {
@@ -78,12 +80,63 @@ const TokenQuantityDemo: React.FC = () => {
     },
     onError: (message) => {
       console.error('WebSocket error:', message);
+      // Auto-switch to polling if WebSocket fails
+      if (message.includes('Connection failed')) {
+        setUsePolling(true);
+      }
     }
   });
 
-  // Load initial data
+  // Polling fallback for environments without WebSocket support
+  const {
+    isConnected: pollingConnected,
+    connectionError: pollingError,
+    lastUpdate: pollingLastUpdate,
+    lastSyncTime,
+    startPolling,
+    stopPolling,
+    simulateTransfer: pollingSimulateTransfer,
+    updatePrice: pollingUpdatePrice,
+    refreshData
+  } = usePollingFallback({
+    walletAddress: selectedWallet,
+    autoConnect: usePolling,
+    onBalanceUpdate: (data) => {
+      console.log('Polling balance update:', data);
+      if (data.data) {
+        setWallets(prev => 
+          prev.map(w => w.address === data.walletAddress ? data.data : w)
+        );
+      }
+    },
+    onTransfer: (data) => {
+      console.log('Polling transfer update:', data);
+      loadWalletData();
+    },
+    onPriceUpdate: (data) => {
+      console.log('Polling price update:', data);
+      loadWalletData();
+    },
+    onError: (message) => {
+      console.error('Polling error:', message);
+    }
+  });
+
+  // Load initial data and detect environment
   useEffect(() => {
     loadWalletData();
+    
+    // Auto-detect if we're on Netlify and switch to polling
+    if (typeof window !== 'undefined') {
+      const isNetlify = window.location.hostname.includes('netlify.app') || 
+                       process.env.NEXT_PUBLIC_DEPLOYMENT_PLATFORM === 'netlify';
+      
+      if (isNetlify) {
+        console.log('Netlify environment detected, switching to polling mode');
+        setUsePolling(true);
+        setRealTimeUpdates(false);
+      }
+    }
   }, []);
 
   const loadWalletData = async () => {
@@ -113,7 +166,9 @@ const TokenQuantityDemo: React.FC = () => {
 
     setLoading(true);
     try {
-      // Use WebSocket for real-time transfer if available
+      let success = false;
+      
+      // Use WebSocket if available and connected
       if (wsConnected) {
         const wsSuccess = wsSimulateTransfer(selectedWallet, transferData.toWallet, transferData.tokenAddress, transferData.amount);
         if (wsSuccess) {
@@ -121,31 +176,35 @@ const TokenQuantityDemo: React.FC = () => {
           setLoading(false);
           return;
         }
-        // If WebSocket failed, fallback to HTTP
-        console.log('WebSocket transfer failed, falling back to HTTP API');
       }
-
-      // Fallback to HTTP API
-      const response = await fetch('/api/quantities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'transfer',
-          walletAddress: selectedWallet,
-          toWallet: transferData.toWallet,
-          tokenAddress: transferData.tokenAddress,
-          amount: transferData.amount
-        })
-      });
-
-      const result = await response.json();
       
-      if (result.success) {
+      // Use polling fallback if WebSocket is not available
+      if (usePolling || pollingConnected) {
+        success = await pollingSimulateTransfer(selectedWallet, transferData.toWallet, transferData.tokenAddress, transferData.amount);
+      } else {
+        // Fallback to HTTP API
+        const response = await fetch('/api/quantities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'transfer',
+            walletAddress: selectedWallet,
+            toWallet: transferData.toWallet,
+            tokenAddress: transferData.tokenAddress,
+            amount: transferData.amount
+          })
+        });
+
+        const result = await response.json();
+        success = result.success;
+      }
+      
+      if (success) {
         alert('Transfer simulated successfully!');
         setTransferData({ toWallet: '', tokenAddress: '', amount: '' });
         loadWalletData();
       } else {
-        alert('Transfer failed: ' + result.message);
+        alert('Transfer failed: Please try again.');
       }
     } catch (error) {
       console.error('Transfer error:', error);
@@ -207,35 +266,44 @@ const TokenQuantityDemo: React.FC = () => {
         '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599': 52000 + Math.random() * 2000 // WBTC: $52k-54k
       };
 
-      // Use WebSocket for real-time price updates if available
+      let success = false;
+      
+      // Use WebSocket if available and connected
       if (wsConnected) {
         let allSuccessful = true;
         Object.entries(priceUpdates).forEach(([address, price]) => {
-          const success = wsUpdatePrice(address, price);
-          if (!success) allSuccessful = false;
+          const wsSuccess = wsUpdatePrice(address, price);
+          if (!wsSuccess) allSuccessful = false;
         });
         
         if (allSuccessful) {
           setLoading(false);
           return;
         }
-        // If some WebSocket updates failed, fallback to HTTP
-        console.log('Some WebSocket price updates failed, falling back to HTTP API');
       }
-
-      // Fallback to HTTP API
-      const response = await fetch('/api/quantities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'update-prices',
-          priceUpdates
-        })
-      });
-
-      const result = await response.json();
       
-      if (result.success) {
+      // Use polling fallback if WebSocket is not available
+      if (usePolling || pollingConnected) {
+        for (const [address, price] of Object.entries(priceUpdates)) {
+          const updateSuccess = await pollingUpdatePrice(address, price);
+          if (updateSuccess) success = true;
+        }
+      } else {
+        // Fallback to HTTP API
+        const response = await fetch('/api/quantities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update-prices',
+            priceUpdates
+          })
+        });
+
+        const result = await response.json();
+        success = result.success;
+      }
+      
+      if (success) {
         loadWalletData();
       }
     } catch (error) {
@@ -246,6 +314,9 @@ const TokenQuantityDemo: React.FC = () => {
   };
 
   const currentWallet = wallets.find(w => w.address === selectedWallet);
+  const lastUpdate = wsLastUpdate || pollingLastUpdate;
+  const connectionError = wsError || pollingError;
+  const isConnected = wsConnected || pollingConnected;
 
   return (
     <div className="space-y-6">
@@ -257,12 +328,21 @@ const TokenQuantityDemo: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          {/* WebSocket Status */}
+          {/* Connection Status */}
           <div className="flex items-center gap-2">
-            {wsConnected ? (
+            {isConnected ? (
               <Badge variant="default" className="bg-green-100 text-green-800">
-                <Wifi className="h-3 w-3 mr-1" />
-                Real-time Active
+                {wsConnected ? (
+                  <>
+                    <Wifi className="h-3 w-3 mr-1" />
+                    WebSocket Active
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Polling Active
+                  </>
+                )}
               </Badge>
             ) : (
               <Badge variant="secondary" className="bg-gray-100 text-gray-600">
@@ -281,44 +361,108 @@ const TokenQuantityDemo: React.FC = () => {
             Simulate Prices
           </Button>
           
+          {/* Connection Method Toggle */}
+          <div className="flex gap-1">
+            <Button
+              onClick={() => {
+                setUsePolling(false);
+                setRealTimeUpdates(true);
+                wsConnect();
+                stopPolling();
+              }}
+              variant={!usePolling && realTimeUpdates ? "default" : "outline"}
+              size="sm"
+            >
+              WebSocket
+            </Button>
+            <Button
+              onClick={() => {
+                setUsePolling(true);
+                setRealTimeUpdates(false);
+                wsDisconnect();
+                startPolling();
+              }}
+              variant={usePolling ? "default" : "outline"}
+              size="sm"
+            >
+              Polling
+            </Button>
+          </div>
+          
           {/* Real-time toggle */}
           <Button
             onClick={() => {
-              if (realTimeUpdates) {
+              if (realTimeUpdates || usePolling) {
                 wsDisconnect();
+                stopPolling();
                 setRealTimeUpdates(false);
+                setUsePolling(false);
               } else {
-                wsConnect();
+                if (usePolling) {
+                  startPolling();
+                } else {
+                  wsConnect();
+                }
                 setRealTimeUpdates(true);
               }
             }}
-            variant={realTimeUpdates ? "default" : "outline"}
+            variant={realTimeUpdates || usePolling ? "default" : "outline"}
             size="sm"
           >
-            {realTimeUpdates ? 'Disable Real-time' : 'Enable Real-time'}
+            {realTimeUpdates || usePolling ? 'Disable' : 'Enable'} Real-time
           </Button>
         </div>
       </div>
 
-      {/* WebSocket Error Display */}
-      {wsError && (
+      {/* Connection Error Display */}
+      {connectionError && (
         <Alert className="border-red-200 bg-red-50">
           <AlertCircle className="h-4 w-4 text-red-600" />
           <div className="flex items-center justify-between">
-            <p className="text-sm text-red-800">
-              WebSocket Error: {wsError}
-            </p>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={() => {
-                wsDisconnect();
-                setTimeout(() => wsConnect(), 1000);
-              }}
-              className="ml-4"
-            >
-              Reconnect
-            </Button>
+            <div>
+              <p className="text-sm text-red-800">
+                {usePolling ? 'Polling' : 'WebSocket'} Error: {connectionError}
+              </p>
+              {usePolling && lastSyncTime > 0 && (
+                <p className="text-xs text-red-600 mt-1">
+                  Last sync: {new Date(lastSyncTime).toLocaleTimeString()}
+                </p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              {usePolling ? (
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => {
+                    stopPolling();
+                    setTimeout(() => startPolling(), 1000);
+                  }}
+                >
+                  Restart Polling
+                </Button>
+              ) : (
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => {
+                    wsDisconnect();
+                    setTimeout(() => wsConnect(), 1000);
+                  }}
+                >
+                  Reconnect
+                </Button>
+              )}
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => {
+                  setUsePolling(!usePolling);
+                }}
+              >
+                Switch to {usePolling ? 'WebSocket' : 'Polling'}
+              </Button>
+            </div>
           </div>
         </Alert>
       )}
@@ -331,11 +475,30 @@ const TokenQuantityDemo: React.FC = () => {
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
                 <span className="text-sm font-medium text-blue-800">
-                  Last Update: {lastUpdate.type.replace('_', ' ')}
+                  Last Update: {lastUpdate.type.replace('_', ' ')} ({usePolling ? 'Polling' : 'WebSocket'})
                 </span>
               </div>
               <span className="text-xs text-blue-600">
                 {new Date(lastUpdate.timestamp).toLocaleTimeString()}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Polling Status */}
+      {usePolling && pollingConnected && (
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium text-green-800">
+                  Auto-sync every 5 seconds
+                </span>
+              </div>
+              <span className="text-xs text-green-600">
+                Last sync: {lastSyncTime > 0 ? new Date(lastSyncTime).toLocaleTimeString() : 'Never'}
               </span>
             </div>
           </CardContent>

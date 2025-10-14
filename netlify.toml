@@ -8,6 +8,11 @@
   NEXT_TELEMETRY_DISABLED = "1"
 
 [[redirects]]
+  from = "/api/socket/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+[[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
@@ -25,6 +30,7 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
+  included_files = ["prisma/**"]
 
 [[headers]]
   for = "/*"
@@ -40,3 +46,12 @@
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization"
+
+[[headers]]
+  for = "/api/socket/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization, Upgrade, Connection"
+    Upgrade = "websocket"
+    Connection = "upgrade"
