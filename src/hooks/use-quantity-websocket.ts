@@ -43,7 +43,9 @@ export const useQuantityWebSocket = (options: UseQuantityWebSocketOptions = {}) 
       const socket = io('/api/socket/quantity', {
         transports: ['websocket', 'polling'],
         upgrade: true,
-        rememberUpgrade: true
+        rememberUpgrade: true,
+        timeout: 10000,
+        forceNew: true
       });
 
       socketRef.current = socket;
@@ -66,8 +68,16 @@ export const useQuantityWebSocket = (options: UseQuantityWebSocketOptions = {}) 
 
       socket.on('connect_error', (error) => {
         console.error('WebSocket connection error:', error);
-        setConnectionError(error.message);
+        setConnectionError(`Connection failed: ${error.message}`);
         setIsConnected(false);
+        
+        // Try to reconnect after a delay
+        setTimeout(() => {
+          if (!socketRef.current?.connected) {
+            console.log('Attempting to reconnect...');
+            connect();
+          }
+        }, 5000);
       });
 
       // Handle balance updates
@@ -151,6 +161,10 @@ export const useQuantityWebSocket = (options: UseQuantityWebSocketOptions = {}) 
         tokenAddress,
         amount
       });
+      return true;
+    } else {
+      console.warn('WebSocket not connected, transfer will fallback to HTTP API');
+      return false;
     }
   }, []);
 
@@ -160,6 +174,10 @@ export const useQuantityWebSocket = (options: UseQuantityWebSocketOptions = {}) 
         tokenAddress,
         newPrice
       });
+      return true;
+    } else {
+      console.warn('WebSocket not connected, price update will fallback to HTTP API');
+      return false;
     }
   }, []);
 

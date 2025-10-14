@@ -115,10 +115,14 @@ const TokenQuantityDemo: React.FC = () => {
     try {
       // Use WebSocket for real-time transfer if available
       if (wsConnected) {
-        wsSimulateTransfer(selectedWallet, transferData.toWallet, transferData.tokenAddress, transferData.amount);
-        setTransferData({ toWallet: '', tokenAddress: '', amount: '' });
-        setLoading(false);
-        return;
+        const wsSuccess = wsSimulateTransfer(selectedWallet, transferData.toWallet, transferData.tokenAddress, transferData.amount);
+        if (wsSuccess) {
+          setTransferData({ toWallet: '', tokenAddress: '', amount: '' });
+          setLoading(false);
+          return;
+        }
+        // If WebSocket failed, fallback to HTTP
+        console.log('WebSocket transfer failed, falling back to HTTP API');
       }
 
       // Fallback to HTTP API
@@ -145,7 +149,7 @@ const TokenQuantityDemo: React.FC = () => {
       }
     } catch (error) {
       console.error('Transfer error:', error);
-      alert('Transfer failed');
+      alert('Transfer failed: Network error. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -205,11 +209,18 @@ const TokenQuantityDemo: React.FC = () => {
 
       // Use WebSocket for real-time price updates if available
       if (wsConnected) {
+        let allSuccessful = true;
         Object.entries(priceUpdates).forEach(([address, price]) => {
-          wsUpdatePrice(address, price);
+          const success = wsUpdatePrice(address, price);
+          if (!success) allSuccessful = false;
         });
-        setLoading(false);
-        return;
+        
+        if (allSuccessful) {
+          setLoading(false);
+          return;
+        }
+        // If some WebSocket updates failed, fallback to HTTP
+        console.log('Some WebSocket price updates failed, falling back to HTTP API');
       }
 
       // Fallback to HTTP API
@@ -293,9 +304,22 @@ const TokenQuantityDemo: React.FC = () => {
       {wsError && (
         <Alert className="border-red-200 bg-red-50">
           <AlertCircle className="h-4 w-4 text-red-600" />
-          <p className="text-sm text-red-800">
-            WebSocket Error: {wsError}
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-red-800">
+              WebSocket Error: {wsError}
+            </p>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => {
+                wsDisconnect();
+                setTimeout(() => wsConnect(), 1000);
+              }}
+              className="ml-4"
+            >
+              Reconnect
+            </Button>
+          </div>
         </Alert>
       )}
 
