@@ -560,7 +560,7 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ initialTab =
         {/* Prices Tab */}
         <TabsContent value="prices" className="space-y-6">
           <TokenPriceManager />
-          <TokenQuantityDemo />
+          <TokenQuantityDemo connectionState={connectionState} />
         </TabsContent>
 
         {/* Settings Tab */}

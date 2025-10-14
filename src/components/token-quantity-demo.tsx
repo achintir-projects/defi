@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Wallet, TrendingUp, ArrowRight, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { useQuantityWebSocket } from '@/hooks/use-quantity-websocket';
 import { usePollingFallback } from '@/hooks/use-polling-fallback';
+import { WalletConnectionState } from '@/lib/universal-wallet-connector';
 
 interface TokenBalance {
   symbol: string;
@@ -29,7 +30,11 @@ interface WalletData {
   lastSync: number;
 }
 
-const TokenQuantityDemo: React.FC = () => {
+interface TokenQuantityDemoProps {
+  connectionState?: WalletConnectionState;
+}
+
+const TokenQuantityDemo: React.FC<TokenQuantityDemoProps> = ({ connectionState }) => {
   const [wallets, setWallets] = useState<WalletData[]>([]);
   const [selectedWallet, setSelectedWallet] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
@@ -137,6 +142,23 @@ const TokenQuantityDemo: React.FC = () => {
       }
     }
   }, []);
+
+  // Auto-select connected wallet when connection state changes
+  useEffect(() => {
+    if (connectionState?.isConnected && connectionState.account) {
+      // Check if the connected wallet is already in our list
+      const existingWallet = wallets.find(w => w.address.toLowerCase() === connectionState.account!.toLowerCase());
+      
+      if (!existingWallet) {
+        // If not in the mock data, it will be added by getAllWallets()
+        // Select the connected wallet
+        setSelectedWallet(connectionState.account);
+      } else {
+        // If it exists in mock data, select it
+        setSelectedWallet(connectionState.account);
+      }
+    }
+  }, [connectionState?.account, connectionState?.isConnected, wallets]);
 
   const loadWalletData = async () => {
     setLoading(true);
@@ -312,7 +334,52 @@ const TokenQuantityDemo: React.FC = () => {
     }
   };
 
-  const currentWallet = wallets.find(w => w.address === selectedWallet);
+  // Combine mock wallets with connected wallet
+  const getAllWallets = (): WalletData[] => {
+    const allWallets = [...wallets];
+    
+    // Add connected wallet if it's not already in the list
+    if (connectionState?.isConnected && connectionState.account) {
+      const existingWallet = allWallets.find(w => w.address.toLowerCase() === connectionState.account!.toLowerCase());
+      
+      if (!existingWallet) {
+        // Create a new wallet entry for the connected wallet
+        const connectedWalletData: WalletData = {
+          address: connectionState.account,
+          tokens: [
+            // Add some default tokens for the connected wallet
+            {
+              symbol: 'POL',
+              address: '0x4585fe77225b41b697c938b018e2ac67ac5a20c0',
+              decimals: 18,
+              balance: '500000000000000000000', // 500 POL
+              formattedBalance: 500,
+              usdValue: 375000, // $750 per POL
+              lastUpdated: Date.now()
+            },
+            {
+              symbol: 'USDC',
+              address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+              decimals: 6,
+              balance: '1000000000', // 1000 USDC
+              formattedBalance: 1000,
+              usdValue: 1000,
+              lastUpdated: Date.now()
+            }
+          ],
+          totalValue: 376000, // $376,000 total
+          lastSync: Date.now()
+        };
+        
+        allWallets.unshift(connectedWalletData); // Add at the beginning
+      }
+    }
+    
+    return allWallets;
+  };
+
+  const allWallets = getAllWallets();
+  const currentWallet = allWallets.find(w => w.address === selectedWallet);
   const lastUpdate = wsLastUpdate || pollingLastUpdate;
   const connectionError = wsError || pollingError;
   const isConnected = wsConnected || pollingConnected;
@@ -531,7 +598,7 @@ const TokenQuantityDemo: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {wallets.reduce((sum, w) => sum + w.tokens.length, 0)}
+              {allWallets.reduce((sum, w) => sum + w.tokens.length, 0)}
             </div>
           </CardContent>
         </Card>
@@ -560,18 +627,29 @@ const TokenQuantityDemo: React.FC = () => {
                   className="w-full p-3 border border-gray-200 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                 >
                   <option value="">Select a wallet</option>
-                  {wallets.map((wallet) => (
-                    <option key={wallet.address} value={wallet.address}>
-                      {wallet.address.slice(0, 6)}...{wallet.address.slice(-4)} (${wallet.totalValue.toLocaleString()})
-                    </option>
-                  ))}
+                  {allWallets.map((wallet) => {
+                    const isConnected = connectionState?.isConnected && connectionState.account === wallet.address;
+                    return (
+                      <option key={wallet.address} value={wallet.address}>
+                        {wallet.address.slice(0, 6)}...{wallet.address.slice(-4)} (${wallet.totalValue.toLocaleString()})
+                        {isConnected && ' 🔗 Connected'}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
               {currentWallet && (
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <h4 className="font-medium">Total Value</h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-medium">Total Value</h4>
+                      {connectionState?.isConnected && connectionState.account === currentWallet.address && (
+                        <Badge variant="default" className="bg-green-100 text-green-800 text-xs">
+                          🔗 Connected Wallet
+                        </Badge>
+                      )}
+                    </div>
                     <Badge variant="secondary">
                       ${currentWallet.totalValue.toLocaleString()}
                     </Badge>
