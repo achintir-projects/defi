@@ -44,8 +44,13 @@ export const useQuantityWebSocket = (options: UseQuantityWebSocketOptions = {}) 
         transports: ['websocket', 'polling'],
         upgrade: true,
         rememberUpgrade: true,
-        timeout: 10000,
-        forceNew: true
+        timeout: 20000, // Increased timeout to 20 seconds
+        forceNew: true,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        maxReconnectionAttempts: 5
       });
 
       socketRef.current = socket;
@@ -64,6 +69,14 @@ export const useQuantityWebSocket = (options: UseQuantityWebSocketOptions = {}) 
       socket.on('disconnect', (reason) => {
         console.log('Disconnected from quantity WebSocket:', reason);
         setIsConnected(false);
+        
+        // Handle different disconnect reasons
+        if (reason === 'io server disconnect') {
+          // Server disconnected, need to reconnect manually
+          socket.connect();
+        } else if (reason === 'ping timeout') {
+          console.log('WebSocket ping timeout, attempting to reconnect...');
+        }
       });
 
       socket.on('connect_error', (error) => {
@@ -71,13 +84,7 @@ export const useQuantityWebSocket = (options: UseQuantityWebSocketOptions = {}) 
         setConnectionError(`Connection failed: ${error.message}`);
         setIsConnected(false);
         
-        // Try to reconnect after a delay
-        setTimeout(() => {
-          if (!socketRef.current?.connected) {
-            console.log('Attempting to reconnect...');
-            connect();
-          }
-        }, 5000);
+        // Don't automatically reconnect here - let Socket.IO handle it with the configured reconnection settings
       });
 
       // Handle balance updates
@@ -107,6 +114,12 @@ export const useQuantityWebSocket = (options: UseQuantityWebSocketOptions = {}) 
       // Handle wallet registration confirmation
       socket.on('wallet_registered', (registeredAddress: string) => {
         console.log(`Wallet ${registeredAddress} registered for real-time updates`);
+      });
+
+      // Handle ping/pong for connection health
+      socket.on('ping', () => {
+        socket.emit('pong');
+        console.log('Received ping, sent pong');
       });
 
       // Handle errors

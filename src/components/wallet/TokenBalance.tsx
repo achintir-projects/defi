@@ -18,6 +18,8 @@ import {
   Settings
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useQuantityWebSocket } from '@/hooks/use-quantity-websocket';
+import { WebSocketStatus } from '@/components/websocket/WebSocketStatus';
 
 interface Token {
   symbol: string;
@@ -43,6 +45,29 @@ export function TokenBalance({ walletAddress, onTokenUpdate }: TokenBalanceProps
   const [selectedToken, setSelectedToken] = useState('USDT-ethereum');
   const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
+
+  // WebSocket integration for real-time updates
+  const {
+    isConnected: wsConnected,
+    connectionError: wsError,
+    lastUpdate,
+    connect: wsConnect,
+    disconnect: wsDisconnect
+  } = useQuantityWebSocket({
+    walletAddress,
+    onBalanceUpdate: (data) => {
+      console.log('Real-time balance update:', data);
+      fetchTokenBalances(); // Refresh balances when WebSocket updates arrive
+    },
+    onError: (message) => {
+      console.error('WebSocket error:', message);
+      toast({
+        title: "WebSocket Error",
+        description: message,
+        variant: "destructive"
+      });
+    }
+  });
 
   const availableTokens = [
     { key: 'USDT-ethereum', symbol: 'USDT', chain: 'Ethereum', price: 1.00 },
@@ -239,6 +264,15 @@ export function TokenBalance({ walletAddress, onTokenUpdate }: TokenBalanceProps
               <Plus className="h-4 w-4" />
             </Button>
           </div>
+        </div>
+        {/* WebSocket Status */}
+        <div className="mt-4">
+          <WebSocketStatus
+            isConnected={wsConnected}
+            connectionError={wsError}
+            onConnect={wsConnect}
+            onDisconnect={wsDisconnect}
+          />
         </div>
       </CardHeader>
       <CardContent>

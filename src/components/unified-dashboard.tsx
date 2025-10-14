@@ -40,6 +40,7 @@ import SettingsPage from './settings';
 import TokenPriceManager from './token-price-manager';
 import TokenQuantityDemo from './token-quantity-demo';
 import { TokenBalance } from './wallet/TokenBalance';
+import { USDTManagementDemo } from './usdt-management-demo';
 import { 
   universalWalletConnector, 
   WalletConnectionState,
@@ -590,6 +591,12 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ initialTab =
                 }}
               />
             </div>
+          </div>
+
+          {/* USDT Management Section */}
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold mb-4">USDT (Ethereum) Management</h3>
+            <USDTManagementDemo />
           </div>
         </TabsContent>
 

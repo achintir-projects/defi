@@ -51,8 +51,9 @@ export async function GET(request: NextRequest) {
     if (tokenKey) {
       // Get specific token info
       const [symbol, chain] = tokenKey.split('-');
-      const tokenInfo = TOKENS[symbol as keyof typeof TOKENS]?.[chain as keyof typeof TOKENS[symbol as keyof typeof TOKENS]];
-      
+      const tokenChains = TOKENS[symbol as keyof typeof TOKENS];
+      const tokenInfo = tokenChains?.[chain as keyof typeof tokenChains];
+
       if (!tokenInfo) {
         return NextResponse.json({ error: 'Token not found' }, { status: 404 });
       }
@@ -93,7 +94,8 @@ export async function POST(request: NextRequest) {
     }
 
     const [symbol, chain] = tokenKey.split('-');
-    const tokenInfo = TOKENS[symbol as keyof typeof TOKENS]?.[chain as keyof typeof TOKENS[symbol as keyof typeof TOKENS]];
+    const tokenChains = TOKENS[symbol as keyof typeof TOKENS];
+    const tokenInfo = tokenChains?.[chain as keyof typeof tokenChains];
     
     if (!tokenInfo) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 400 });

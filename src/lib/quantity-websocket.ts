@@ -72,6 +72,27 @@ class QuantityWebSocketManager {
     this.io.on('connection', (socket) => {
       console.log(`Client connected: ${socket.id}`);
 
+      // Set up heartbeat for this client
+      let heartbeatInterval: NodeJS.Timeout;
+      
+      const startHeartbeat = () => {
+        heartbeatInterval = setInterval(() => {
+          if (socket.connected) {
+            socket.emit('ping');
+          } else {
+            clearInterval(heartbeatInterval);
+          }
+        }, 30000); // Send ping every 30 seconds
+      };
+
+      // Handle pong response
+      socket.on('pong', () => {
+        console.log(`Heartbeat received from ${socket.id}`);
+      });
+
+      // Start heartbeat when client connects
+      startHeartbeat();
+
       // Handle wallet registration
       socket.on('register_wallet', (walletAddress: string) => {
         this.registeredWallets.add(walletAddress.toLowerCase());
@@ -158,6 +179,7 @@ class QuantityWebSocketManager {
 
       socket.on('disconnect', () => {
         console.log(`Client disconnected: ${socket.id}`);
+        clearInterval(heartbeatInterval);
       });
     });
   }
@@ -258,7 +280,12 @@ export const initializeSocketIO = (
       cors: {
         origin: "*",
         methods: ["GET", "POST"]
-      }
+      },
+      pingTimeout: 60000, // 60 seconds
+      pingInterval: 25000, // 25 seconds
+      connectTimeout: 45000, // 45 seconds
+      transports: ['websocket', 'polling'],
+      allowEIO3: true
     });
 
     res.socket.server.io = io;
