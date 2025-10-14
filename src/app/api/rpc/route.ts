@@ -230,7 +230,7 @@ export async function GET() {
     name: 'POL Sandbox RPC',
     version: '1.0.0',
     network: {
-      name: 'POL Sandbox Network',
+      name: 'Ethereum',
       chainId: 9191,
       rpcUrl: process.env.NEXT_PUBLIC_BASE_URL || 'https://defi-tw.netlify.app',
       symbol: 'ETH',

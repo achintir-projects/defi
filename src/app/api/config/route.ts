@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
 
 // Configuration API for POL Sandbox settings
-let configStore: any = {
+const defaultConfig: any = {
   systemEnabled: true,
   autoStart: false,
   logLevel: 'info',
@@ -21,9 +22,56 @@ let configStore: any = {
   overrideApis: ['coingecko', 'dexscreener', 'cryptocompare']
 };
 
+// Helper function to get configuration from database or fallback to default
+async function getConfig(): Promise<any> {
+  try {
+    // Try to get config from database
+    const configRecord = await db.config.findFirst({
+      where: { key: 'pol_sandbox_config' }
+    });
+    
+    if (configRecord) {
+      return { ...defaultConfig, ...JSON.parse(configRecord.value) };
+    }
+    
+    // Create default config if it doesn't exist
+    await db.config.create({
+      data: {
+        key: 'pol_sandbox_config',
+        value: JSON.stringify(defaultConfig)
+      }
+    });
+    
+    return defaultConfig;
+  } catch (error) {
+    console.error('Database config error:', error);
+    // Fallback to default config
+    return defaultConfig;
+  }
+}
+
+// Helper function to save configuration to database
+async function saveConfig(config: any): Promise<boolean> {
+  try {
+    await db.config.upsert({
+      where: { key: 'pol_sandbox_config' },
+      update: { value: JSON.stringify(config) },
+      create: {
+        key: 'pol_sandbox_config',
+        value: JSON.stringify(config)
+      }
+    });
+    return true;
+  } catch (error) {
+    console.error('Failed to save config to database:', error);
+    return false;
+  }
+}
+
 export async function GET() {
   try {
-    return NextResponse.json(configStore);
+    const config = await getConfig();
+    return NextResponse.json(config);
   } catch (error) {
     console.error('Config GET error:', error);
     return NextResponse.json(
@@ -55,14 +103,25 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Update configuration
-    configStore = { ...configStore, ...config };
+    // Get current config and merge with new values
+    const currentConfig = await getConfig();
+    const updatedConfig = { ...currentConfig, ...config };
     
-    console.log('Configuration updated:', configStore);
+    // Save to database
+    const saved = await saveConfig(updatedConfig);
+    
+    if (!saved) {
+      return NextResponse.json(
+        { error: 'Failed to persist configuration' },
+        { status: 500 }
+      );
+    }
+    
+    console.log('Configuration updated:', updatedConfig);
     
     return NextResponse.json({
       success: true,
-      config: configStore
+      config: updatedConfig
     });
     
   } catch (error) {

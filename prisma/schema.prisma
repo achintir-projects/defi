@@ -30,3 +30,23 @@ model Post {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model Config {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Distribution {
+  id            String   @id @default(cuid())
+  walletAddress String
+  token         String
+  amount        Float
+  chainId       Int      @default(9191)
+  status        String   @default("pending") // pending, completed, failed
+  txHash        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

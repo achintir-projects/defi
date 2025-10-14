@@ -430,7 +430,7 @@ export class POLRpcEndpoint {
   getRpcConfig() {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://defi-tw.netlify.app';
     return {
-      networkName: "POL Sandbox Network",
+      networkName: "Ethereum",
       rpcUrl: `${baseUrl}/api/rpc`,
       chainId: this.POL_CHAIN_ID,
       symbol: "ETH",
