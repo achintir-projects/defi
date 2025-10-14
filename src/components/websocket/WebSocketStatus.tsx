@@ -84,10 +84,10 @@ export function WebSocketStatus({
 
       {/* WebSocket Not Supported Message */}
       {!isWebSocketSupported && (
-        <Alert variant="default" className="py-2 bg-yellow-50 border-yellow-200">
-          <AlertCircle className="h-4 w-4 text-yellow-600" />
-          <AlertDescription className="text-sm text-yellow-800">
-            Real-time features not available on this hosting platform. Using HTTP APIs for full functionality.
+        <Alert variant="default" className="py-2 bg-blue-50 border-blue-200">
+          <CheckCircle className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-sm text-blue-800">
+            Using HTTP APIs - All features work automatically without real-time updates.
           </AlertDescription>
         </Alert>
       )}
@@ -131,8 +131,8 @@ export function WebSocketStatus({
             ✓ Real-time updates active
           </div>
         ) : !isWebSocketSupported ? (
-          <div className="text-yellow-600 font-medium">
-            ⚡ HTTP APIs active (manual refresh required)
+          <div className="text-blue-600 font-medium">
+            ✓ HTTP APIs active - All features working
           </div>
         ) : (
           <div className="text-gray-600 font-medium">

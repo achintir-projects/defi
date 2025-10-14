@@ -20,6 +20,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useQuantityWebSocket } from '@/hooks/use-quantity-websocket';
 import { WebSocketStatus } from '@/components/websocket/WebSocketStatus';
+import { WalletConnectionState } from '@/lib/universal-wallet-connector';
 
 interface Token {
   symbol: string;
@@ -32,11 +33,16 @@ interface Token {
 }
 
 interface TokenBalanceProps {
-  walletAddress: string;
+  walletAddress?: string;
   onTokenUpdate?: () => void;
+  connectionState?: WalletConnectionState;
 }
 
-export function TokenBalance({ walletAddress, onTokenUpdate }: TokenBalanceProps) {
+export function TokenBalance({ walletAddress, onTokenUpdate, connectionState }: TokenBalanceProps) {
+  // Use connected wallet address if available, otherwise use the provided address
+  const effectiveWalletAddress = connectionState?.isConnected && connectionState.account 
+    ? connectionState.account 
+    : walletAddress || '0x1234567890123456789012345678901234567890';
   const [tokens, setTokens] = useState<Token[]>([]);
   const [totalValue, setTotalValue] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -55,7 +61,7 @@ export function TokenBalance({ walletAddress, onTokenUpdate }: TokenBalanceProps
     connect: wsConnect,
     disconnect: wsDisconnect
   } = useQuantityWebSocket({
-    walletAddress,
+    walletAddress: effectiveWalletAddress,
     onBalanceUpdate: (data) => {
       console.log('Real-time balance update:', data);
       fetchTokenBalances(); // Refresh balances when WebSocket updates arrive
@@ -77,13 +83,15 @@ export function TokenBalance({ walletAddress, onTokenUpdate }: TokenBalanceProps
   ];
 
   useEffect(() => {
-    fetchTokenBalances();
-  }, [walletAddress]);
+    if (effectiveWalletAddress) {
+      fetchTokenBalances();
+    }
+  }, [effectiveWalletAddress, connectionState?.account]);
 
   const fetchTokenBalances = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/wallet/balance?address=${walletAddress}`);
+      const response = await fetch(`/api/wallet/balance?address=${effectiveWalletAddress}`);
       const data = await response.json();
       
       if (data.balances) {
@@ -123,7 +131,7 @@ export function TokenBalance({ walletAddress, onTokenUpdate }: TokenBalanceProps
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          walletAddress,
+          walletAddress: effectiveWalletAddress,
           symbol,
           chain,
           balance: parseFloat(newTokenAmount),
@@ -168,7 +176,7 @@ export function TokenBalance({ walletAddress, onTokenUpdate }: TokenBalanceProps
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          walletAddress,
+          walletAddress: effectiveWalletAddress,
           symbol: token.symbol,
           chain: token.chain,
           balance: token.balance,

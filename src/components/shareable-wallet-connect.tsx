@@ -20,6 +20,7 @@ import {
   Link,
   Download
 } from 'lucide-react';
+import QRCodeLib from 'qrcode';
 
 interface ShareableWalletConnectProps {
   compact?: boolean;
@@ -31,6 +32,7 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
   const [qrCode, setQrCode] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [qrCodeLoading, setQrCodeLoading] = useState<boolean>(false);
 
   const walletOptions = [
     { id: 'metamask', name: 'MetaMask', icon: '🦊', priority: 1 },
@@ -50,27 +52,69 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
     generateConnectionLink(selectedWallet);
   }, []);
 
-  const generateConnectionLink = (walletId: string) => {
+  const generateConnectionLink = async (walletId: string) => {
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://pol-sandbox.com';
     const connectUrl = `${baseUrl}/connect?wallet=${walletId}&auto=true`;
     
     setGeneratedLink(connectUrl);
     
-    // Generate QR code (mock implementation)
-    const qrDataUrl = `data:image/svg+xml;base64,${btoa(`
-      <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
-        <rect width="200" height="200" fill="white"/>
-        <text x="100" y="100" text-anchor="middle" font-size="12">QR Code for ${walletId}</text>
-        <text x="100" y="120" text-anchor="middle" font-size="8">${connectUrl.substring(0, 30)}...</text>
-      </svg>
-    `)}`;
-    
-    setQrCode(qrDataUrl);
+    // Generate real QR code
+    setQrCodeLoading(true);
+    try {
+      const qrDataUrl = await QRCodeLib.toDataURL(connectUrl, {
+        width: 256,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      setQrCode(qrDataUrl);
+    } catch (error) {
+      console.error('Failed to generate QR code:', error);
+      // Fallback to mock QR code
+      const mockQrDataUrl = `data:image/svg+xml;base64,${btoa(`
+        <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+          <rect width="200" height="200" fill="white"/>
+          <text x="100" y="100" text-anchor="middle" font-size="12">QR Code for ${walletId}</text>
+          <text x="100" y="120" text-anchor="middle" font-size="8">${connectUrl.substring(0, 30)}...</text>
+        </svg>
+      `)}`;
+      setQrCode(mockQrDataUrl);
+    } finally {
+      setQrCodeLoading(false);
+    }
   };
 
   const handleWalletChange = (walletId: string) => {
     setSelectedWallet(walletId);
     generateConnectionLink(walletId);
+  };
+
+  const downloadQRCode = () => {
+    if (!qrCode) return;
+    
+    const link = document.createElement('a');
+    link.href = qrCode;
+    link.download = `pol-sandbox-${selectedWallet}-qrcode.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const copyQRCodeImage = async () => {
+    if (!qrCode) return;
+    
+    try {
+      const blob = await (await fetch(qrCode)).blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob })
+      ]);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy QR code image:', error);
+    }
   };
 
   const copyToClipboard = async (text: string) => {
@@ -259,23 +303,50 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-center">
-              <div className="w-64 h-64 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
-                <div className="text-center">
-                  <QrCode className="h-32 w-32 mx-auto mb-2 text-gray-400" />
-                  <p className="text-sm text-gray-600">QR Code Preview</p>
-                  <p className="text-xs text-gray-500 mt-1">For {walletOptions.find(w => w.id === selectedWallet)?.name}</p>
+              {qrCodeLoading ? (
+                <div className="w-64 h-64 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                    <p className="text-sm text-gray-600">Generating QR Code...</p>
+                  </div>
                 </div>
-              </div>
+              ) : qrCode ? (
+                <div className="w-64 h-64 bg-white rounded-lg flex items-center justify-center border-2 border-gray-300">
+                  <img 
+                    src={qrCode} 
+                    alt={`QR Code for ${walletOptions.find(w => w.id === selectedWallet)?.name}`}
+                    className="w-56 h-56 object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="w-64 h-64 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
+                  <div className="text-center">
+                    <QrCode className="h-32 w-32 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm text-gray-600">QR Code Preview</p>
+                    <p className="text-xs text-gray-500 mt-1">For {walletOptions.find(w => w.id === selectedWallet)?.name}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
-              <Button variant="outline" className="w-full">
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={downloadQRCode}
+                disabled={!qrCode || qrCodeLoading}
+              >
                 <Download className="h-4 w-4 mr-2" />
                 Download QR Code
               </Button>
-              <Button variant="outline" className="w-full">
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={copyQRCodeImage}
+                disabled={!qrCode || qrCodeLoading}
+              >
                 <Copy className="h-4 w-4 mr-2" />
-                Copy QR Code Image
+                {copied ? 'QR Code Copied!' : 'Copy QR Code Image'}
               </Button>
             </div>
           </CardContent>

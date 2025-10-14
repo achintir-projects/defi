@@ -609,6 +609,7 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ initialTab =
         <TabsContent value="prices" className="space-y-6">
           <TokenPriceManager />
           <TokenQuantityDemo connectionState={connectionState} />
+          <TokenBalance connectionState={connectionState} />
         </TabsContent>
 
         {/* Shareable Links Tab */}
