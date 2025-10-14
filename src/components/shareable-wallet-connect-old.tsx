@@ -571,30 +571,6 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
         </Card>
       </div>
 
-      {/* Plan B Options */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Smartphone className="h-5 w-5" />
-            Plan B - Alternative Connection Methods
-          </CardTitle>
-          <CardDescription>
-            When QR codes don't work, try these alternative connection methods
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <PlanBConnectionOptions 
-            compact={true}
-            onConnectionSuccess={(state) => {
-              console.log('Plan B connection successful:', state);
-            }}
-            onConnectionError={(error) => {
-              console.error('Plan B connection error:', error);
-            }}
-          />
-        </CardContent>
-      </Card>
-
       {/* Instructions */}
       <Card>
         <CardHeader>

@@ -20,6 +20,7 @@ import {
   Shield,
   Zap
 } from 'lucide-react';
+import PlanBConnectionOptions from './plan-b-connection-options';
 
 interface WalletGuide {
   id: string;
@@ -286,9 +287,10 @@ const WalletInstallationGuide: React.FC = () => {
       </div>
 
       <Tabs defaultValue="install" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="install">Install</TabsTrigger>
           <TabsTrigger value="setup">Setup</TabsTrigger>
+          <TabsTrigger value="troubleshoot">Plan B</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="chains">Networks</TabsTrigger>
         </TabsList>
@@ -380,6 +382,64 @@ const WalletInstallationGuide: React.FC = () => {
                   </li>
                 ))}
               </ol>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="troubleshoot" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Smartphone className="h-5 w-5" />
+                Plan B - Connection Troubleshooting
+              </CardTitle>
+              <CardDescription>
+                Alternative connection methods when standard installation doesn't work
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Can't install browser extensions?</strong> Use these Plan B options to connect your wallet without installation.
+                </AlertDescription>
+              </Alert>
+              
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium mb-2">Common Issues & Solutions:</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-start gap-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                      <div>
+                        <strong>Browser not supported:</strong> Use mobile deep links or manual URL connection
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                      <div>
+                        <strong>Extension blocked by IT policy:</strong> Try mobile app or manual connection methods
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                      <div>
+                        <strong>QR code scanner not working:</strong> Use direct deep links or copy-paste URLs
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <PlanBConnectionOptions 
+                  compact={false}
+                  onConnectionSuccess={(state) => {
+                    console.log('Plan B connection successful:', state);
+                  }}
+                  onConnectionError={(error) => {
+                    console.error('Plan B connection error:', error);
+                  }}
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

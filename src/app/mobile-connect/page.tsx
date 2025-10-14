@@ -13,9 +13,13 @@ import {
   Zap,
   Shield,
   Smartphone,
-  QrCode
+  QrCode,
+  ExternalLink,
+  AlertTriangle,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
-import { universalWalletConnector, WalletConnectionState } from '@/lib/universal-wallet-connector';
+import { enhancedWalletConnector, ENHANCED_WALLET_CONFIGS } from '@/lib/enhanced-wallet-connector';
 
 const POL_NETWORK_CONFIG = {
   chainId: '0x15bca',
@@ -51,13 +55,12 @@ interface MobileWalletOption {
   id: string;
   name: string;
   icon: string;
-  deepLink: string;
-  installUrl: string;
-  color: string;
+  config: any;
+  detected: boolean;
 }
 
-const MobileConnectPage: React.FC = () => {
-  const [connectionState, setConnectionState] = useState<WalletConnectionState>({
+const SuperEnhancedMobileConnectPage: React.FC = () => {
+  const [connectionState, setConnectionState] = useState<any>({
     isConnected: false,
     account: null,
     chainId: null,
@@ -68,59 +71,40 @@ const MobileConnectPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [step, setStep] = useState<'initial' | 'connecting' | 'setup' | 'complete'>('initial');
+  const [detectedWallets, setDetectedWallets] = useState<Set<string>>(new Set());
+  const [isMobile, setIsMobile] = useState(false);
 
   const mobileWallets: MobileWalletOption[] = [
     {
       id: 'metamask',
       name: 'MetaMask',
       icon: '🦊',
-      deepLink: 'metamask://dapp/',
-      installUrl: 'https://metamask.app.link/dapp/',
-      color: 'bg-orange-500'
+      config: ENHANCED_WALLET_CONFIGS.metamask,
+      detected: detectedWallets.has('metamask')
     },
     {
       id: 'trustwallet',
       name: 'Trust Wallet',
       icon: '🛡️',
-      deepLink: 'trust://dapp/',
-      installUrl: 'https://link.trustwallet.com/open_url?coin_id=60&url=',
-      color: 'bg-blue-500'
+      config: ENHANCED_WALLET_CONFIGS.trustwallet,
+      detected: detectedWallets.has('trustwallet')
     },
     {
       id: 'coinbase',
       name: 'Coinbase',
       icon: '🔵',
-      deepLink: 'cbwallet://dapp/',
-      installUrl: 'https://go.cb-w.com/dapp',
-      color: 'bg-blue-600'
-    },
-    {
-      id: 'phantom',
-      name: 'Phantom',
-      icon: '👻',
-      deepLink: 'phantom://browse/',
-      installUrl: 'https://phantom.app/',
-      color: 'bg-purple-500'
-    },
-    {
-      id: 'okx',
-      name: 'OKX',
-      icon: '⚡',
-      deepLink: 'okx://wallet/dapp/',
-      installUrl: 'https://www.okx.com/web3',
-      color: 'bg-black'
-    },
-    {
-      id: 'walletconnect',
-      name: 'WalletConnect',
-      icon: '🔗',
-      deepLink: 'wc:',
-      installUrl: 'https://walletconnect.com/',
-      color: 'bg-cyan-500'
+      config: ENHANCED_WALLET_CONFIGS.coinbase,
+      detected: detectedWallets.has('coinbase')
     }
   ];
 
   useEffect(() => {
+    // Check if mobile
+    setIsMobile(enhancedWalletConnector.isMobile());
+    
+    // Start wallet detection
+    detectWallets();
+    
     // Check URL parameters for auto-connect
     const urlParams = new URLSearchParams(window.location.search);
     const walletParam = urlParams.get('wallet');
@@ -129,21 +113,43 @@ const MobileConnectPage: React.FC = () => {
     if (walletParam && autoParam === 'true') {
       const wallet = mobileWallets.find(w => w.id === walletParam);
       if (wallet) {
-        connectWallet(wallet);
+        setTimeout(() => connectWallet(wallet), 1000);
       }
     }
 
     // Check existing connection
     checkExistingConnection();
-  }, []);
+    
+    // Set up continuous detection
+    const interval = setInterval(detectWallets, 2000);
+    return () => clearInterval(interval);
+  }, [detectedWallets]);
+
+  const detectWallets = async () => {
+    try {
+      const detected = await enhancedWalletConnector.detectAllWallets();
+      setDetectedWallets(new Set(detected));
+    } catch (error) {
+      console.error('Detection failed:', error);
+    }
+  };
 
   const checkExistingConnection = async () => {
     try {
-      const state = universalWalletConnector.getConnectionState();
-      if (state.isConnected) {
-        setConnectionState(state);
-        setStep('complete');
-        setSuccess('Already connected to POL Sandbox!');
+      for (const wallet of mobileWallets) {
+        const status = enhancedWalletConnector.getConnectionStatus(wallet.id);
+        if (status.isConnected && status.account) {
+          setConnectionState({
+            isConnected: true,
+            account: status.account,
+            chainId: '0x15bca',
+            walletType: wallet.name,
+            balance: '0'
+          });
+          setStep('complete');
+          setSuccess('Already connected to POL Sandbox!');
+          return;
+        }
       }
     } catch (error) {
       console.error('Failed to check existing connection:', error);
@@ -157,76 +163,76 @@ const MobileConnectPage: React.FC = () => {
     setStep('connecting');
 
     try {
-      // Try deep link first
-      const currentUrl = encodeURIComponent(window.location.href);
-      const deepLinkUrl = wallet.deepLink + currentUrl;
+      console.log(`🚀 Starting enhanced connection to ${wallet.name}...`);
       
-      window.location.href = deepLinkUrl;
-      
-      // Wait for potential wallet connection
-      setTimeout(async () => {
-        try {
-          const state = await universalWalletConnector.connect(wallet.id);
-          setConnectionState(state);
-          await setupWallet(state);
-        } catch (error) {
-          console.error('Connection failed:', error);
-          // Fallback to installation
-          window.open(wallet.installUrl + currentUrl, '_blank');
-          setError(`Please install ${wallet.name} first`);
-          setStep('initial');
-        }
-        setLoading(null);
-      }, 3000);
-
-    } catch (error) {
+      if (wallet.detected && !isMobile) {
+        // Desktop connection
+        const state = await enhancedWalletConnector.connectWallet(wallet.id);
+        setConnectionState(state);
+        await setupWallet(state, wallet.id);
+      } else {
+        // Mobile connection - try deep link
+        const currentUrl = window.location.href;
+        
+        setSuccess(`Opening ${wallet.name}...`);
+        
+        // Try to open mobile wallet
+        enhancedWalletConnector.openMobileWallet(wallet.id, currentUrl);
+        
+        // Wait for connection
+        setTimeout(async () => {
+          try {
+            const state = await enhancedWalletConnector.connectWallet(wallet.id);
+            setConnectionState(state);
+            await setupWallet(state, wallet.id);
+          } catch (error) {
+            console.error('Mobile connection failed:', error);
+            
+            // Fallback to installation
+            setSuccess(`Opening ${wallet.name} installation...`);
+            window.open(wallet.config.installUrl + encodeURIComponent(currentUrl), '_blank');
+            
+            setError(`Please install ${wallet.name} first`);
+            setStep('initial');
+          }
+          setLoading(null);
+        }, 5000);
+      }
+    } catch (error: any) {
       console.error('Connection error:', error);
-      setError(`Failed to connect to ${wallet.name}`);
+      setError(error.message || `Failed to connect to ${wallet.name}`);
       setLoading(null);
       setStep('initial');
     }
   };
 
-  const setupWallet = async (state: WalletConnectionState) => {
+  const setupWallet = async (state: any, walletId: string) => {
     setStep('setup');
     setSuccess('Setting up POL Sandbox...');
 
     try {
       // Add network
-      if (window.ethereum) {
-        await window.ethereum.request({
-          method: 'wallet_addEthereumChain',
-          params: [POL_NETWORK_CONFIG]
-        });
-
-        // Switch to network
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: POL_NETWORK_CONFIG.chainId }]
-        });
-
+      setSuccess('Adding POL Sandbox network...');
+      const networkAdded = await enhancedWalletConnector.setupPOLNetwork(walletId);
+      
+      if (networkAdded) {
+        setSuccess('Switching to POL Sandbox...');
+        
         // Add tokens
-        for (const token of DEFAULT_TOKENS) {
-          await window.ethereum.request({
-            method: 'wallet_watchAsset',
-            params: {
-              type: 'ERC20',
-              options: {
-                address: token.address,
-                symbol: token.symbol,
-                decimals: token.decimals
-              }
-            }
-          });
-        }
+        setSuccess('Adding default tokens...');
+        const tokenResults = await enhancedWalletConnector.addTokens(walletId, DEFAULT_TOKENS);
+        
+        const successCount = tokenResults.filter(Boolean).length;
+        setSuccess(`✅ Added ${successCount}/${DEFAULT_TOKENS.length} tokens!`);
+        
+        setSuccess('🎉 Connected to POL Sandbox!');
+        setStep('complete');
+      } else {
+        throw new Error('Failed to setup network');
       }
-
-      setSuccess('🎉 Connected to POL Sandbox!');
-      setStep('complete');
-
-    } catch (error) {
+    } catch (error: any) {
       console.error('Setup failed:', error);
-      setError('Setup failed. Please add network manually.');
+      setError(error.message || 'Setup failed. Please add network manually.');
       setStep('complete');
     }
   };
@@ -241,38 +247,83 @@ const MobileConnectPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold">Connect to POL</h1>
           <p className="text-gray-600 mt-2">
-            Automatic setup • No configuration needed
+            Enhanced mobile support • Better compatibility
           </p>
         </div>
       </div>
 
+      {/* Detection Status */}
+      <Alert className={detectedWallets.size > 0 ? "border-green-200 bg-green-50" : "border-yellow-200 bg-yellow-50"}>
+        {detectedWallets.size > 0 ? (
+          <Wifi className="h-4 w-4 text-green-600" />
+        ) : (
+          <WifiOff className="h-4 w-4 text-yellow-600" />
+        )}
+        <AlertDescription>
+          {detectedWallets.size > 0 
+            ? `Detected ${detectedWallets.size} wallet(s): ${Array.from(detectedWallets).join(', ')}`
+            : 'No wallets detected. Make sure your wallet app is installed.'
+          }
+        </AlertDescription>
+      </Alert>
+
       {/* Wallet Options */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         {mobileWallets.map((wallet) => (
           <Card 
             key={wallet.id}
-            className="cursor-pointer hover:shadow-lg transition-all"
+            className={`cursor-pointer hover:shadow-lg transition-all ${
+              wallet.detected ? 'border-green-500 bg-green-50' : ''
+            }`}
             onClick={() => connectWallet(wallet)}
           >
             <CardContent className="p-4">
               <div className="space-y-3">
-                <div className={`w-12 h-12 ${wallet.color} rounded-xl flex items-center justify-center`}>
-                  <span className="text-2xl">{wallet.icon}</span>
+                <div className="flex items-center justify-between">
+                  <div className={`w-12 h-12 ${wallet.config.color} rounded-xl flex items-center justify-center`}>
+                    <span className="text-2xl">{wallet.icon}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {wallet.detected && (
+                      <Badge variant="default" className="text-xs">
+                        <Wifi className="w-3 h-3 mr-1" />
+                        Detected
+                      </Badge>
+                    )}
+                    {loading === wallet.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ArrowRight className="h-4 w-4 text-gray-400" />
+                    )}
+                  </div>
                 </div>
                 <div>
                   <h3 className="font-semibold">{wallet.name}</h3>
-                  <p className="text-xs text-gray-500">Tap to connect</p>
+                  <p className="text-xs text-gray-500">
+                    {wallet.detected 
+                      ? 'Tap to connect' 
+                      : isMobile 
+                        ? 'Tap to open app' 
+                        : 'Tap to install'
+                    }
+                  </p>
                 </div>
-                {loading === wallet.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ArrowRight className="h-4 w-4 text-gray-400" />
-                )}
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      {/* Mobile Specific Instructions */}
+      {isMobile && (
+        <Alert>
+          <Smartphone className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Mobile Users:</strong> If a wallet doesn't open automatically, 
+            make sure the app is installed and try again.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Features */}
       <div className="space-y-3">
@@ -281,8 +332,8 @@ const MobileConnectPage: React.FC = () => {
             <Zap className="h-4 w-4 text-green-600" />
           </div>
           <div>
-            <p className="font-medium text-sm">Automatic Network Setup</p>
-            <p className="text-xs text-gray-500">POL Sandbox added automatically</p>
+            <p className="font-medium text-sm">Enhanced Detection</p>
+            <p className="text-xs text-gray-500">Better wallet compatibility</p>
           </div>
         </div>
         
@@ -291,16 +342,17 @@ const MobileConnectPage: React.FC = () => {
             <Shield className="h-4 w-4 text-blue-600" />
           </div>
           <div>
-            <p className="font-medium text-sm">Default Tokens Added</p>
-            <p className="text-xs text-gray-500">POL, USDC, USDT included</p>
+            <p className="font-medium text-sm">Automatic Setup</p>
+            <p className="text-xs text-gray-500">Network and tokens configured</p>
           </div>
         </div>
       </div>
 
+      {/* Troubleshooting */}
       <Alert>
-        <QrCode className="h-4 w-4" />
+        <AlertTriangle className="h-4 w-4" />
         <AlertDescription>
-          <strong>Secure & Simple:</strong> Your wallet is configured automatically with the correct network and tokens.
+          <strong>Having trouble?</strong> Try refreshing the page or installing the latest version of your wallet app.
         </AlertDescription>
       </Alert>
     </div>
@@ -335,6 +387,15 @@ const MobileConnectPage: React.FC = () => {
           <span>Adding tokens</span>
         </div>
       </div>
+
+      {isMobile && (
+        <Alert>
+          <Smartphone className="h-4 w-4" />
+          <AlertDescription>
+            If the wallet doesn't open, please check that the app is installed and try again.
+          </AlertDescription>
+        </Alert>
+      )}
     </div>
   );
 
@@ -427,6 +488,7 @@ const MobileConnectPage: React.FC = () => {
           onClick={() => window.open('https://pol-sandbox.com', '_blank')}
           className="w-full bg-gradient-to-r from-blue-500 to-purple-600"
         >
+          <ExternalLink className="w-4 h-4 mr-2" />
           Open POL Sandbox
         </Button>
       </div>
@@ -459,4 +521,4 @@ const MobileConnectPage: React.FC = () => {
   );
 };
 
-export default MobileConnectPage;
+export default SuperEnhancedMobileConnectPage;

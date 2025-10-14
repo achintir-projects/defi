@@ -41,11 +41,11 @@ export class MetaMaskIntegration {
 
   private readonly POL_NETWORK_CONFIG: NetworkConfig = {
     chainId: '0x23E7', // 9191 in hex
-    chainName: 'POL Sandbox Network',
+    chainName: 'POL Sandbox',
     rpcUrls: ['https://rpc.pol-sandbox.com'],
     nativeCurrency: {
-      name: 'Ether',
-      symbol: 'ETH',
+      name: 'POL',
+      symbol: 'POL',
       decimals: 18
     },
     blockExplorerUrls: ['https://explorer.pol-sandbox.com']
@@ -316,11 +316,11 @@ export class TrustWalletIntegration {
           method: 'wallet_addEthereumChain',
           params: [{
             chainId: '0x23E7',
-            chainName: 'POL Sandbox Network',
+            chainName: 'POL Sandbox',
             rpcUrls: ['https://rpc.pol-sandbox.com'],
             nativeCurrency: {
-              name: 'Ether',
-              symbol: 'ETH',
+              name: 'POL',
+              symbol: 'POL',
               decimals: 18
             },
             blockExplorerUrls: ['https://explorer.pol-sandbox.com']
@@ -469,11 +469,11 @@ export class CoinbaseWalletIntegration {
         method: 'wallet_addEthereumChain',
         params: [{
           chainId: '0x23E7',
-          chainName: 'POL Sandbox Network',
+          chainName: 'POL Sandbox',
           rpcUrls: ['https://rpc.pol-sandbox.com'],
           nativeCurrency: {
-            name: 'Ether',
-            symbol: 'ETH',
+            name: 'POL',
+            symbol: 'POL',
             decimals: 18
           },
           blockExplorerUrls: ['https://explorer.pol-sandbox.com'],

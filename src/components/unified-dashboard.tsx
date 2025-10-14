@@ -41,6 +41,11 @@ import TokenPriceManager from './token-price-manager';
 import TokenQuantityDemo from './token-quantity-demo';
 import { TokenBalance } from './wallet/TokenBalance';
 import { USDTManagementDemo } from './usdt-management-demo';
+import { SuperEnhancedTrustWalletConnector } from './super-enhanced-trust-wallet-connector';
+import { TrustWalletSetupGuide } from './trust-wallet-setup-guide';
+import { WalletConnectionMonitor } from './wallet-connection-monitor';
+import { TrustWalletTroubleshooting } from './trust-wallet-troubleshooting';
+import { NetworkStatusNotifications } from './network-status-notifications';
 import { 
   universalWalletConnector, 
   WalletConnectionState,
@@ -402,6 +407,9 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ initialTab =
 
   return (
     <div className="space-y-6">
+      {/* Network Status Notifications */}
+      <NetworkStatusNotifications />
+      
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -591,6 +599,30 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ initialTab =
                 }}
               />
             </div>
+          </div>
+
+          {/* Enhanced Trust Wallet Section */}
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold mb-4">Enhanced Trust Wallet Connection</h3>
+            <SuperEnhancedTrustWalletConnector />
+          </div>
+
+          {/* Trust Wallet Setup Guide */}
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold mb-4">Trust Wallet Setup Guide</h3>
+            <TrustWalletSetupGuide />
+          </div>
+
+          {/* Wallet Connection Monitor */}
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold mb-4">Connection Monitor</h3>
+            <WalletConnectionMonitor />
+          </div>
+
+          {/* Trust Wallet Troubleshooting */}
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold mb-4">Troubleshooting</h3>
+            <TrustWalletTroubleshooting />
           </div>
 
           {/* USDT Management Section */}

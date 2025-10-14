@@ -1,4 +1,5 @@
 // Universal Wallet Connector for POL Sandbox
+import { robustNetworkSetup } from './robust-network-setup';
 export interface WalletConfig {
   name: string;
   id: string;
@@ -84,7 +85,7 @@ export class UniversalWalletConnector {
       mobile: true,
       extension: true,
       inject: 'trustwallet',
-      deeplink: 'trust://dapp/'
+      deeplink: 'https://link.trustwallet.com/open_url?coin_id=60&url='
     },
     coinbase: {
       name: 'Coinbase Wallet',
@@ -332,7 +333,7 @@ export class UniversalWalletConnector {
     },
     // Custom POL Sandbox Network
     pol: {
-      chainId: '88888',
+      chainId: '9191',
       chainName: 'POL Sandbox',
       nativeCurrency: {
         name: 'POL',
@@ -514,6 +515,28 @@ export class UniversalWalletConnector {
         walletType,
         balance
       };
+
+      // AUTOMATIC NETWORK SETUP for MetaMask and Trust Wallet
+      if (walletType === 'metamask' || walletType === 'trustwallet') {
+        console.log(`🚀 Auto-setting up POL network for ${walletType}...`);
+        
+        // Don't await this to avoid blocking the connection
+        robustNetworkSetup.setupNetwork(walletType, (message) => {
+          console.log(`Network setup progress for ${walletType}:`, message);
+        }).then(result => {
+          if (result.success) {
+            console.log(`✅ Network setup successful for ${walletType}:`, result.action);
+            // Update connection state with new chain ID
+            this.getChainId(walletType).then(newChainId => {
+              this.connectionState.chainId = newChainId;
+            });
+          } else {
+            console.warn(`⚠️ Network setup failed for ${walletType}:`, result.error);
+          }
+        }).catch(error => {
+          console.error(`❌ Network setup error for ${walletType}:`, error);
+        });
+      }
 
       return this.connectionState;
     } catch (error) {
@@ -840,6 +863,74 @@ export class UniversalWalletConnector {
 
   getConnectionState(): WalletConnectionState {
     return { ...this.connectionState };
+  }
+
+  // New methods for POL network setup
+  async setupPolNetwork(walletType?: string, onProgress?: (message: string) => void): Promise<{
+    success: boolean;
+    action: 'switched' | 'added' | 'failed';
+    error?: string;
+  }> {
+    const targetWallet = walletType || this.connectionState.walletType;
+    if (!targetWallet) {
+      return { success: false, action: 'failed', error: 'No wallet specified or connected' };
+    }
+
+    return await robustNetworkSetup.setupNetwork(targetWallet, onProgress);
+  }
+
+  async addPolTokens(walletType?: string, onProgress?: (message: string) => void): Promise<{
+    success: boolean;
+    tokensAdded: number;
+    errors: string[];
+  }> {
+    const targetWallet = walletType || this.connectionState.walletType;
+    if (!targetWallet) {
+      return { success: false, tokensAdded: 0, errors: ['No wallet specified or connected'] };
+    }
+
+    const defaultTokens = [
+      {
+        address: '0x4585fe77225b41b697c938b018e2ac67ac5a20c0',
+        symbol: 'POL',
+        decimals: 18,
+        image: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x4585fe77225b41b697c938b018e2ac67ac5a20c0/logo.png'
+      },
+      {
+        address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+        symbol: 'USDC',
+        decimals: 6,
+        image: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48/logo.png'
+      },
+      {
+        address: '0xdac17f958d2ee523a2206206994597c13d831ec7',
+        symbol: 'USDT',
+        decimals: 6,
+        image: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdac17f958d2ee523a2206206994597c13d831ec7/logo.png'
+      }
+    ];
+
+    let tokensAdded = 0;
+    const errors: string[] = [];
+
+    for (const token of defaultTokens) {
+      try {
+        const result = await robustNetworkSetup.addToken(targetWallet, token, onProgress);
+        if (result.success) {
+          tokensAdded++;
+        } else {
+          errors.push(`${token.symbol}: ${result.error}`);
+        }
+      } catch (error: any) {
+        errors.push(`${token.symbol}: ${error.message}`);
+      }
+    }
+
+    return {
+      success: tokensAdded > 0,
+      tokensAdded,
+      errors
+    };
   }
 }
 

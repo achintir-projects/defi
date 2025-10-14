@@ -13,6 +13,15 @@ import {
   PortfolioData 
 } from '@/lib/universal-wallet-connector';
 import { walletConnectManager } from '@/lib/walletconnect';
+import NetworkStatusIndicator from '@/components/network-status-indicator';
+
+declare global {
+  interface Window {
+    ethereum?: any;
+    trustwallet?: any;
+    _trustwallet?: any;
+  }
+}
 
 interface WalletButtonProps {
   wallet: WalletConfig;
@@ -85,6 +94,8 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
   onDisconnect, 
   portfolio 
 }) => {
+  const [isCorrectNetwork, setIsCorrectNetwork] = useState(false);
+
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
@@ -95,56 +106,82 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
   };
 
   return (
-    <Card className="border-green-500 bg-green-50">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <CheckCircle className="w-5 h-5 text-green-600" />
-          Connected to {state.walletType}
-        </CardTitle>
-        <CardDescription>
-          Your wallet is successfully connected to POL Sandbox
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <div className="text-sm font-medium text-muted-foreground">Account</div>
-            <div className="font-mono text-sm">{formatAddress(state.account!)}</div>
-          </div>
-          <div>
-            <div className="text-sm font-medium text-muted-foreground">Balance</div>
-            <div className="font-semibold">{formatBalance(state.balance)} ETH</div>
-          </div>
-          <div>
-            <div className="text-sm font-medium text-muted-foreground">Chain</div>
-            <div className="font-semibold">Chain ID: {state.chainId}</div>
-          </div>
-          <div>
-            <div className="text-sm font-medium text-muted-foreground">Portfolio Value</div>
-            <div className="font-semibold text-green-600">
-              ${portfolio?.totalValue.toLocaleString() || '0.00'}
+    <div className="space-y-6">
+      <Card className="border-green-500 bg-green-50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            Connected to {state.walletType}
+          </CardTitle>
+          <CardDescription>
+            Your wallet is successfully connected to POL Sandbox
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <div className="text-sm font-medium text-muted-foreground">Account</div>
+              <div className="font-mono text-sm">{formatAddress(state.account!)}</div>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-muted-foreground">Balance</div>
+              <div className="font-semibold">{formatBalance(state.balance)} ETH</div>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-muted-foreground">Chain</div>
+              <div className="font-semibold">Chain ID: {state.chainId}</div>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-muted-foreground">Portfolio Value</div>
+              <div className="font-semibold text-green-600">
+                ${portfolio?.totalValue.toLocaleString() || '0.00'}
+              </div>
             </div>
           </div>
-        </div>
-        
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={onDisconnect}>
-            Disconnect
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <a 
-              href={`https://etherscan.io/address/${state.account}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1"
-            >
-              <ExternalLink className="w-3 h-3" />
-              View on Etherscan
-            </a>
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+          
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={onDisconnect}>
+              Disconnect
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <a 
+                href={`https://etherscan.io/address/${state.account}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1"
+              >
+                <ExternalLink className="w-3 h-3" />
+                View on Etherscan
+              </a>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Network Status Indicator */}
+      <NetworkStatusIndicator 
+        chainId={state.chainId}
+        walletType={state.walletType}
+        onNetworkChange={setIsCorrectNetwork}
+      />
+
+      {/* Network Status Banner */}
+      {isCorrectNetwork && (
+        <Card className="border-green-500 bg-green-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              <div>
+                <div className="font-medium text-green-800">Perfect! You're on the POL Sandbox network</div>
+                <div className="text-sm text-green-600">
+                  All features are now available. You can use the POL Sandbox features.
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 };
 
@@ -210,7 +247,39 @@ export const UniversalWalletConnection: React.FC = () => {
   useEffect(() => {
     detectWallets();
     initializeWalletConnect();
+    setupNetworkMonitoring();
   }, []);
+
+  const setupNetworkMonitoring = () => {
+    if (window.ethereum) {
+      // Listen for chain changes
+      const handleChainChanged = (chainId: string) => {
+        console.log('Chain changed to:', chainId);
+        setConnectionState(prev => ({ ...prev, chainId }));
+      };
+
+      const handleAccountsChanged = (accounts: string[]) => {
+        console.log('Accounts changed:', accounts);
+        if (accounts.length === 0) {
+          // User disconnected
+          handleDisconnect();
+        } else {
+          setConnectionState(prev => ({ ...prev, account: accounts[0] }));
+        }
+      };
+
+      window.ethereum.on('chainChanged', handleChainChanged);
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+
+      // Cleanup
+      return () => {
+        if (window.ethereum?.removeListener) {
+          window.ethereum.removeListener('chainChanged', handleChainChanged);
+          window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+        }
+      };
+    }
+  };
 
   const detectWallets = async () => {
     try {
@@ -247,6 +316,9 @@ export const UniversalWalletConnection: React.FC = () => {
         // Load portfolio data
         const portfolioData = await universalWalletConnector.getPortfolio();
         setPortfolio(portfolioData);
+
+        // Setup network monitoring after connection
+        setupNetworkMonitoring();
       }
     } catch (error: any) {
       console.error('Connection failed:', error);
