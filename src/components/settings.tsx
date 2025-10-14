@@ -82,6 +82,8 @@ const SettingsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [testResults, setTestResults] = useState<Record<string, boolean>>({});
+  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
     if (!isClient) return;
@@ -95,6 +97,11 @@ const SettingsPage: React.FC = () => {
       const response = await fetch('/api/config');
       if (response.ok) {
         const data = await response.json();
+        // Store debug info and remove it from config
+        if (data._debug) {
+          setDebugInfo(data._debug);
+          delete data._debug;
+        }
         setConfig({ ...defaultConfig, ...data });
       }
     } catch (error) {
@@ -108,6 +115,8 @@ const SettingsPage: React.FC = () => {
     if (!isClient) return;
     try {
       setSaveStatus('saving');
+      setErrorMessage('');
+      setDebugInfo(null);
       
       const response = await fetch('/api/config', {
         method: 'POST',
@@ -117,15 +126,26 @@ const SettingsPage: React.FC = () => {
         body: JSON.stringify(config),
       });
 
+      const data = await response.json();
+      
       if (response.ok) {
         setSaveStatus('saved');
+        // Store debug info
+        if (data._debug) {
+          setDebugInfo(data._debug);
+        }
         setTimeout(() => setSaveStatus('idle'), 2000);
       } else {
         setSaveStatus('error');
+        setErrorMessage(data.error || 'Failed to save settings');
+        if (data._debug) {
+          setDebugInfo(data._debug);
+        }
       }
     } catch (error) {
       console.error('Failed to save settings:', error);
       setSaveStatus('error');
+      setErrorMessage('Network error. Please check your connection.');
     }
   };
 
@@ -224,7 +244,17 @@ const SettingsPage: React.FC = () => {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Failed to save settings. Please try again.
+            <div>
+              <p className="font-medium">{errorMessage || 'Failed to save settings. Please try again.'}</p>
+              {debugInfo && (
+                <details className="mt-2">
+                  <summary className="text-xs cursor-pointer">Debug Information</summary>
+                  <pre className="text-xs mt-2 bg-black/10 p-2 rounded overflow-auto">
+                    {JSON.stringify(debugInfo, null, 2)}
+                  </pre>
+                </details>
+              )}
+            </div>
           </AlertDescription>
         </Alert>
       )}
