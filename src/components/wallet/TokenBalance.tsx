@@ -51,6 +51,7 @@ export function TokenBalance({ walletAddress, onTokenUpdate }: TokenBalanceProps
     isConnected: wsConnected,
     connectionError: wsError,
     lastUpdate,
+    isWebSocketSupported,
     connect: wsConnect,
     disconnect: wsDisconnect
   } = useQuantityWebSocket({
@@ -272,6 +273,7 @@ export function TokenBalance({ walletAddress, onTokenUpdate }: TokenBalanceProps
             connectionError={wsError}
             onConnect={wsConnect}
             onDisconnect={wsDisconnect}
+            isWebSocketSupported={isWebSocketSupported}
           />
         </div>
       </CardHeader>

@@ -34,9 +34,28 @@ export const useQuantityWebSocket = (options: UseQuantityWebSocketOptions = {}) 
   const [isConnected, setIsConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<QuantityUpdateEvent | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isWebSocketSupported, setIsWebSocketSupported] = useState(true);
   const socketRef = useRef<Socket | null>(null);
 
+  // Check if WebSocket is supported (not on static hosting like Netlify)
+  useEffect(() => {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isNetlify = window.location.hostname.includes('netlify.app') || 
+                     window.location.hostname.includes('netlify.com');
+    
+    if (isProduction && isNetlify) {
+      setIsWebSocketSupported(false);
+      setConnectionError('WebSocket not supported on this hosting platform. Using HTTP fallback.');
+      console.log('WebSocket disabled for Netlify deployment - using HTTP APIs only');
+    }
+  }, []);
+
   const connect = useCallback(() => {
+    if (!isWebSocketSupported) {
+      console.log('WebSocket not supported, skipping connection');
+      return;
+    }
+
     if (socketRef.current?.connected) return;
 
     try {
@@ -133,7 +152,7 @@ export const useQuantityWebSocket = (options: UseQuantityWebSocketOptions = {}) 
       console.error('Failed to create WebSocket connection:', error);
       setConnectionError('Failed to create connection');
     }
-  }, [walletAddress, onBalanceUpdate, onTransfer, onPriceUpdate, onTokenAdded, onError]);
+  }, [walletAddress, onBalanceUpdate, onTransfer, onPriceUpdate, onTokenAdded, onError, isWebSocketSupported]);
 
   const disconnect = useCallback(() => {
     if (socketRef.current) {
@@ -194,16 +213,16 @@ export const useQuantityWebSocket = (options: UseQuantityWebSocketOptions = {}) 
     }
   }, []);
 
-  // Auto-connect on mount
+  // Auto-connect on mount (only if WebSocket is supported)
   useEffect(() => {
-    if (autoConnect) {
+    if (autoConnect && isWebSocketSupported) {
       connect();
     }
 
     return () => {
       disconnect();
     };
-  }, [autoConnect, connect, disconnect]);
+  }, [autoConnect, connect, disconnect, isWebSocketSupported]);
 
   // Handle wallet address changes
   useEffect(() => {
@@ -213,9 +232,10 @@ export const useQuantityWebSocket = (options: UseQuantityWebSocketOptions = {}) 
   }, [walletAddress, isConnected, registerWallet]);
 
   return {
-    isConnected,
+    isConnected: isConnected && isWebSocketSupported,
     connectionError,
     lastUpdate,
+    isWebSocketSupported,
     connect,
     disconnect,
     registerWallet,

@@ -50,6 +50,7 @@ export function USDTManagementDemo() {
     isConnected: wsConnected,
     connectionError: wsError,
     lastUpdate,
+    isWebSocketSupported,
     connect: wsConnect,
     disconnect: wsDisconnect
   } = useQuantityWebSocket({
@@ -143,7 +144,7 @@ export function USDTManagementDemo() {
       setUpdating(true);
       
       // Update via WebSocket if available, otherwise fallback to HTTP
-      const wsSuccess = wsConnected && 
+      const wsSuccess = isWebSocketSupported && wsConnected && 
         (window as any).updatePrice?.(USDT_CONTRACT_ADDRESS, newPriceValue);
 
       if (!wsSuccess) {
@@ -297,6 +298,7 @@ export function USDTManagementDemo() {
               connectionError={wsError}
               onConnect={wsConnect}
               onDisconnect={wsDisconnect}
+              isWebSocketSupported={isWebSocketSupported}
             />
           </div>
 
