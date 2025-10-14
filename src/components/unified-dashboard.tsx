@@ -29,7 +29,7 @@ import {
   Shield,
   Network
 } from 'lucide-react';
-import { QuickConnect } from './quick-connect';
+import QuickConnect from './quick-connect';
 import { ConnectionStrategyWizard } from './connection-strategy-wizard';
 import SettingsPage from './settings';
 import TokenPriceManager from './token-price-manager';

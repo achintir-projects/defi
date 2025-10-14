@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -554,21 +553,19 @@ const TokenQuantityDemo: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="wallet-select">Select Wallet</Label>
-                <Select value={selectedWallet} onValueChange={setSelectedWallet}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a wallet" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {wallets.map((wallet) => (
-                      <SelectItem key={wallet.address} value={wallet.address}>
-                        {wallet.address.slice(0, 6)}...{wallet.address.slice(-4)} 
-                        <span className="ml-2 text-muted-foreground">
-                          (${wallet.totalValue.toLocaleString()})
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <select 
+                  id="wallet-select"
+                  value={selectedWallet} 
+                  onChange={(e) => setSelectedWallet(e.target.value)}
+                  className="w-full p-3 border border-gray-200 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                >
+                  <option value="">Select a wallet</option>
+                  {wallets.map((wallet) => (
+                    <option key={wallet.address} value={wallet.address}>
+                      {wallet.address.slice(0, 6)}...{wallet.address.slice(-4)} (${wallet.totalValue.toLocaleString()})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {currentWallet && (
@@ -633,22 +630,20 @@ const TokenQuantityDemo: React.FC = () => {
                 </div>
                 
                 <div>
-                  <Label htmlFor="token-address">Token Address</Label>
-                  <Select 
+                  <Label htmlFor="token-address">Token</Label>
+                  <select 
+                    id="token-address"
                     value={transferData.tokenAddress} 
-                    onValueChange={(value) => setTransferData(prev => ({ ...prev, tokenAddress: value }))}
+                    onChange={(e) => setTransferData(prev => ({ ...prev, tokenAddress: e.target.value }))}
+                    className="w-full p-3 border border-gray-200 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select token" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {currentWallet?.tokens.map((token) => (
-                        <SelectItem key={token.address} value={token.address}>
-                          {token.symbol}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <option value="">Select token</option>
+                    {currentWallet?.tokens.map((token) => (
+                      <option key={token.address} value={token.address}>
+                        {token.symbol}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 
                 <div>
