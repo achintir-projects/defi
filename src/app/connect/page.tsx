@@ -21,6 +21,7 @@ import {
   Copy
 } from 'lucide-react';
 import { universalWalletConnector, WalletConnectionState } from '@/lib/universal-wallet-connector';
+import { WalletVerification } from '@/components/wallet-verification';
 
 interface WalletOption {
   id: string;
@@ -698,6 +699,12 @@ const ConnectPage: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {/* Wallet Verification */}
+      <WalletVerification 
+        connectionState={connectionState}
+        onRetry={() => setStep('select')}
+      />
 
       {connectionState.isConnected && (
         <Card className="max-w-md mx-auto">

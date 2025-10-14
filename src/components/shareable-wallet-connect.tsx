@@ -18,7 +18,8 @@ import {
   ArrowRight,
   Wallet,
   Link,
-  Download
+  Download,
+  AlertCircle
 } from 'lucide-react';
 import QRCodeLib from 'qrcode';
 
@@ -33,6 +34,7 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
   const [copied, setCopied] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [qrCodeLoading, setQrCodeLoading] = useState<boolean>(false);
+  const [qrFormat, setQrFormat] = useState<'simple' | 'full' | 'direct'>('simple');
 
   const walletOptions = [
     { id: 'metamask', name: 'MetaMask', icon: '🦊', priority: 1 },
@@ -53,90 +55,168 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
     generateConnectionLink(selectedWallet);
   }, []);
 
-  const generateConnectionLink = async (walletId: string) => {
+  const generateWalletConnectURI = (data: any): string => {
+    // Generate WalletConnect URI for deep linking
+    const wcData = {
+      topic: 'pol-sandbox-' + Date.now(),
+      version: 2,
+      symKey: 'x'.repeat(64), // Mock symmetric key
+      relay: { protocol: 'irn' },
+      client: {
+        rpcUrl: typeof window !== 'undefined' ? window.location.origin : 'https://pol-sandbox.com',
+        methods: ['eth_sign', 'eth_signTransaction', 'eth_sendTransaction', 'personal_sign'],
+        events: ['accountsChanged', 'chainChanged']
+      },
+      data: data
+    };
+    
+    return btoa(JSON.stringify(wcData)).substring(0, 100);
+  };
+
+  const getDirectWalletLink = (walletId: string): string => {
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://pol-sandbox.com';
     
-    // Create comprehensive wallet connection data
+    // Create connection data for direct linking
     const connectionData = {
       wallet: walletId,
       auto: true,
       network: {
         name: 'POL Sandbox',
-        chainId: '0x539', // 1337 in hex
+        chainId: '0x539',
         rpcUrls: ['https://rpc.pol-sandbox.com'],
         nativeCurrency: {
           name: 'POL',
           symbol: 'POL',
           decimals: 18
-        },
-        blockExplorerUrls: ['https://explorer.pol-sandbox.com']
+        }
       },
       tokens: [
         {
           address: '0x4585fe77225b41b697c938b018e2ac67ac5a20c0',
           symbol: 'POL',
-          name: 'POL Token',
-          decimals: 18,
-          balance: '500000000000000000000', // 500 POL
-          price: 750.00,
-          logoURI: `${baseUrl}/pol-logo.png`
+          balance: '500000000000000000000',
+          price: 750.00
         },
         {
           address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
           symbol: 'USDT',
-          name: 'Tether USD',
-          decimals: 6,
-          balance: '1000000000', // 1000 USDT
-          price: 1.00,
-          logoURI: `${baseUrl}/usdt-logo.png`
-        },
-        {
-          address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-          symbol: 'USDC',
-          name: 'USD Coin',
-          decimals: 6,
-          balance: '500000000', // 500 USDC
-          price: 1.00,
-          logoURI: `${baseUrl}/usdc-logo.png`
+          balance: '1000000000',
+          price: 1.00
         }
-      ],
-      timestamp: Date.now(),
-      version: '1.0'
+      ]
     };
+    
+    const links: Record<string, string> = {
+      metamask: isMobile ? `metamask://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://metamask.io/download/',
+      trustwallet: isMobile ? `https://link.trustwallet.com/open_url?coin_id=60&url=${encodeURIComponent(baseUrl + '?data=' + encodeURIComponent(JSON.stringify(connectionData)))}` : 'https://trustwallet.com/download/',
+      coinbase: isMobile ? `cbwallet://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://www.coinbase.com/wallet',
+      walletconnect: `wc:${generateWalletConnectURI(connectionData)}`,
+      phantom: isMobile ? `phantom://browse/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://phantom.app/',
+      okx: isMobile ? `okx://wallet/dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://www.okx.com/web3',
+      bybit: isMobile ? `bybitdapp://browser/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://www.bybit.com/en/web3'
+    };
+    
+    return links[walletId] || `${baseUrl}/connect?wallet=${walletId}&auto=true&data=${encodeURIComponent(JSON.stringify(connectionData))}`;
+  };
 
-    // Generate wallet-specific deep links
+  const generateConnectionLink = async (walletId: string) => {
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://pol-sandbox.com';
+    
+    // Generate different QR code formats based on selection
     let deepLinkUrl = '';
     
-    if (isMobile) {
-      // Mobile deep linking based on wallet
-      switch (walletId) {
-        case 'metamask':
-          deepLinkUrl = `metamask://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
-          break;
-        case 'trustwallet':
-          deepLinkUrl = `https://link.trustwallet.com/open_url?coin_id=60&url=${encodeURIComponent(baseUrl + '?data=' + encodeURIComponent(JSON.stringify(connectionData)))}`;
-          break;
-        case 'coinbase':
-          deepLinkUrl = `cbwallet://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
-          break;
-        case 'phantom':
-          deepLinkUrl = `phantom://browse/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
-          break;
-        case 'okx':
-          deepLinkUrl = `okx://wallet/dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
-          break;
-        case 'bybit':
-          deepLinkUrl = `bybitdapp://browser/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
-          break;
-        case 'walletconnect':
-          deepLinkUrl = `wc:${generateWalletConnectURI(connectionData)}`;
-          break;
-        default:
-          deepLinkUrl = `${baseUrl}/connect?wallet=${walletId}&auto=true&data=${encodeURIComponent(JSON.stringify(connectionData))}`;
-      }
+    if (qrFormat === 'simple') {
+      // Simple format - just the wallet and auto-connect flag
+      const simpleData = {
+        wallet: walletId,
+        auto: true,
+        ts: Date.now()
+      };
+      deepLinkUrl = `${baseUrl}/connect?wallet=${walletId}&auto=true&data=${encodeURIComponent(JSON.stringify(simpleData))}`;
+    } else if (qrFormat === 'direct') {
+      // Direct wallet deep link (most compatible)
+      deepLinkUrl = getDirectWalletLink(walletId);
     } else {
-      // Desktop fallback
-      deepLinkUrl = `${baseUrl}/connect?wallet=${walletId}&auto=true&data=${encodeURIComponent(JSON.stringify(connectionData))}`;
+      // Full format - complete configuration (original)
+      const connectionData = {
+        wallet: walletId,
+        auto: true,
+        network: {
+          name: 'POL Sandbox',
+          chainId: '0x539', // 1337 in hex
+          rpcUrls: ['https://rpc.pol-sandbox.com'],
+          nativeCurrency: {
+            name: 'POL',
+            symbol: 'POL',
+            decimals: 18
+          },
+          blockExplorerUrls: ['https://explorer.pol-sandbox.com']
+        },
+        tokens: [
+          {
+            address: '0x4585fe77225b41b697c938b018e2ac67ac5a20c0',
+            symbol: 'POL',
+            name: 'POL Token',
+            decimals: 18,
+            balance: '500000000000000000000', // 500 POL
+            price: 750.00,
+            logoURI: `${baseUrl}/pol-logo.png`
+          },
+          {
+            address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+            symbol: 'USDT',
+            name: 'Tether USD',
+            decimals: 6,
+            balance: '1000000000', // 1000 USDT
+            price: 1.00,
+            logoURI: `${baseUrl}/usdt-logo.png`
+          },
+          {
+            address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+            symbol: 'USDC',
+            name: 'USD Coin',
+            decimals: 6,
+            balance: '500000000', // 500 USDC
+            price: 1.00,
+            logoURI: `${baseUrl}/usdc-logo.png`
+          }
+        ],
+        timestamp: Date.now(),
+        version: '1.0'
+      };
+
+      // Generate wallet-specific deep links
+      if (isMobile) {
+        // Mobile deep linking based on wallet
+        switch (walletId) {
+          case 'metamask':
+            deepLinkUrl = `metamask://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
+            break;
+          case 'trustwallet':
+            deepLinkUrl = `https://link.trustwallet.com/open_url?coin_id=60&url=${encodeURIComponent(baseUrl + '?data=' + encodeURIComponent(JSON.stringify(connectionData)))}`;
+            break;
+          case 'coinbase':
+            deepLinkUrl = `cbwallet://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
+            break;
+          case 'phantom':
+            deepLinkUrl = `phantom://browse/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
+            break;
+          case 'okx':
+            deepLinkUrl = `okx://wallet/dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
+            break;
+          case 'bybit':
+            deepLinkUrl = `bybitdapp://browser/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}`;
+            break;
+          case 'walletconnect':
+            deepLinkUrl = `wc:${generateWalletConnectURI(connectionData)}`;
+            break;
+          default:
+            deepLinkUrl = `${baseUrl}/connect?wallet=${walletId}&auto=true&data=${encodeURIComponent(JSON.stringify(connectionData))}`;
+        }
+      } else {
+        // Desktop fallback
+        deepLinkUrl = `${baseUrl}/connect?wallet=${walletId}&auto=true&data=${encodeURIComponent(JSON.stringify(connectionData))}`;
+      }
     }
     
     setGeneratedLink(deepLinkUrl);
@@ -174,22 +254,9 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
     generateConnectionLink(walletId);
   };
 
-  const generateWalletConnectURI = (data: any): string => {
-    // Generate WalletConnect URI for deep linking
-    const wcData = {
-      topic: 'pol-sandbox-' + Date.now(),
-      version: 2,
-      symKey: 'x'.repeat(64), // Mock symmetric key
-      relay: { protocol: 'irn' },
-      client: {
-        rpcUrl: typeof window !== 'undefined' ? window.location.origin : 'https://pol-sandbox.com',
-        methods: ['eth_sign', 'eth_signTransaction', 'eth_sendTransaction', 'personal_sign'],
-        events: ['accountsChanged', 'chainChanged']
-      },
-      data: data
-    };
-    
-    return btoa(JSON.stringify(wcData)).substring(0, 100);
+  const handleFormatChange = (format: 'simple' | 'full' | 'direct') => {
+    setQrFormat(format);
+    generateConnectionLink(selectedWallet);
   };
 
   const downloadQRCode = () => {
@@ -242,52 +309,6 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
     } else {
       copyToClipboard(generatedLink);
     }
-  };
-
-  const getDirectWalletLink = (walletId: string): string => {
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://pol-sandbox.com';
-    
-    // Create connection data for direct linking
-    const connectionData = {
-      wallet: walletId,
-      auto: true,
-      network: {
-        name: 'POL Sandbox',
-        chainId: '0x539',
-        rpcUrls: ['https://rpc.pol-sandbox.com'],
-        nativeCurrency: {
-          name: 'POL',
-          symbol: 'POL',
-          decimals: 18
-        }
-      },
-      tokens: [
-        {
-          address: '0x4585fe77225b41b697c938b018e2ac67ac5a20c0',
-          symbol: 'POL',
-          balance: '500000000000000000000',
-          price: 750.00
-        },
-        {
-          address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-          symbol: 'USDT',
-          balance: '1000000000',
-          price: 1.00
-        }
-      ]
-    };
-    
-    const links: Record<string, string> = {
-      metamask: isMobile ? `metamask://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://metamask.io/download/',
-      trustwallet: isMobile ? `https://link.trustwallet.com/open_url?coin_id=60&url=${encodeURIComponent(baseUrl + '?data=' + encodeURIComponent(JSON.stringify(connectionData)))}` : 'https://trustwallet.com/download/',
-      coinbase: isMobile ? `cbwallet://dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://www.coinbase.com/wallet',
-      walletconnect: `wc:${generateWalletConnectURI(connectionData)}`,
-      phantom: isMobile ? `phantom://browse/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://phantom.app/',
-      okx: isMobile ? `okx://wallet/dapp/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://www.okx.com/web3',
-      bybit: isMobile ? `bybitdapp://browser/${baseUrl}?data=${encodeURIComponent(JSON.stringify(connectionData))}` : 'https://www.bybit.com/en/web3'
-    };
-    
-    return links[walletId] || `${baseUrl}/connect?wallet=${walletId}&auto=true&data=${encodeURIComponent(JSON.stringify(connectionData))}`;
   };
 
   if (compact) {
@@ -379,6 +400,41 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
             </div>
 
             <div>
+              <Label htmlFor="qr-format">QR Code Format</Label>
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                <Button
+                  variant={qrFormat === 'simple' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleFormatChange('simple')}
+                  className="text-xs"
+                >
+                  Simple
+                </Button>
+                <Button
+                  variant={qrFormat === 'direct' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleFormatChange('direct')}
+                  className="text-xs"
+                >
+                  Direct
+                </Button>
+                <Button
+                  variant={qrFormat === 'full' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleFormatChange('full')}
+                  className="text-xs"
+                >
+                  Full
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {qrFormat === 'simple' && 'Minimal data - most compatible with scanners'}
+                {qrFormat === 'direct' && 'Direct wallet deep link - best for mobile'}
+                {qrFormat === 'full' && 'Complete configuration - includes preset tokens'}
+              </p>
+            </div>
+
+            <div>
               <Label htmlFor="generated-link">Generated Link</Label>
               <div className="flex gap-2 mt-2">
                 <Input
@@ -414,13 +470,45 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
             {isMobile && (
               <Button 
                 variant="outline"
-                onClick={() => window.open(getDirectWalletLink(selectedWallet), '_blank')}
+                onClick={() => {
+                  const link = getDirectWalletLink(selectedWallet);
+                  // Store configuration for verification
+                  const configData = {
+                    wallet: selectedWallet,
+                    network: {
+                      name: 'POL Sandbox',
+                      chainId: '0x539',
+                      rpcUrls: ['https://rpc.pol-sandbox.com'],
+                      nativeCurrency: { name: 'POL', symbol: 'POL', decimals: 18 }
+                    },
+                    tokens: [
+                      { address: '0x4585fe77225b41b697c938b018e2ac67ac5a20c0', symbol: 'POL', balance: '500000000000000000000' },
+                      { address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', symbol: 'USDC', balance: '500000000' },
+                      { address: '0xdac17f958d2ee523a2206206994597c13d831ec7', symbol: 'USDT', balance: '1000000000' }
+                    ]
+                  };
+                  localStorage.setItem('pending-configuration', JSON.stringify(configData));
+                  window.open(link, '_blank');
+                }}
                 className="w-full"
               >
                 <Smartphone className="h-4 w-4 mr-2" />
                 Open in {walletOptions.find(w => w.id === selectedWallet)?.name}
               </Button>
             )}
+
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>QR Code Not Working?</strong> Try these solutions:
+                <ul className="list-disc list-inside mt-2 text-sm">
+                  <li>Use the "Simple" format for better scanner compatibility</li>
+                  <li>Try your phone's built-in camera app instead of wallet scanner</li>
+                  <li>Ensure good lighting and hold camera steady</li>
+                  <li>Copy the link above and paste it directly into your browser</li>
+                </ul>
+              </AlertDescription>
+            </Alert>
           </CardContent>
         </Card>
 
@@ -455,88 +543,40 @@ const ShareableWalletConnect: React.FC<ShareableWalletConnectProps> = ({ compact
               ) : (
                 <div className="w-64 h-64 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
                   <div className="text-center">
-                    <QrCode className="h-32 w-32 mx-auto mb-2 text-gray-400" />
-                    <p className="text-sm text-gray-600">QR Code Preview</p>
-                    <p className="text-xs text-gray-500 mt-1">For {walletOptions.find(w => w.id === selectedWallet)?.name}</p>
+                    <QrCode className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">QR Code will appear here</p>
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
               <Button 
                 variant="outline" 
-                className="w-full"
                 onClick={downloadQRCode}
-                disabled={!qrCode || qrCodeLoading}
+                disabled={!qrCode}
               >
                 <Download className="h-4 w-4 mr-2" />
-                Download QR Code
+                Download
               </Button>
               <Button 
                 variant="outline" 
-                className="w-full"
                 onClick={copyQRCodeImage}
-                disabled={!qrCode || qrCodeLoading}
+                disabled={!qrCode}
               >
                 <Copy className="h-4 w-4 mr-2" />
-                {copied ? 'QR Code Copied!' : 'Copy QR Code Image'}
+                {copied ? 'Copied!' : 'Copy Image'}
               </Button>
+            </div>
+
+            <div className="text-center">
+              <Badge variant="outline" className="text-xs">
+                Format: {qrFormat.charAt(0).toUpperCase() + qrFormat.slice(1)}
+              </Badge>
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Usage Examples */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Usage Examples</CardTitle>
-          <CardDescription>
-            Different ways to share your wallet connection
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <h4 className="font-medium flex items-center gap-2">
-                <Smartphone className="h-4 w-4" />
-                Mobile Users
-              </h4>
-              <p className="text-sm text-muted-foreground">
-                Share the link via SMS, email, or messaging apps. Users can tap to open directly in their wallet.
-              </p>
-            </div>
-            
-            <div className="space-y-2">
-              <h4 className="font-medium flex items-center gap-2">
-                <Monitor className="h-4 w-4" />
-                Desktop Users
-              </h4>
-              <p className="text-sm text-muted-foreground">
-                Share QR code on websites, presentations, or print materials. Users can scan with mobile wallets.
-              </p>
-            </div>
-            
-            <div className="space-y-2">
-              <h4 className="font-medium flex items-center gap-2">
-                <Wallet className="h-4 w-4" />
-                Direct Integration
-              </h4>
-              <p className="text-sm text-muted-foreground">
-                Embed the link in your dApp, documentation, or onboarding flow for seamless connections.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Alert>
-        <CheckCircle className="h-4 w-4" />
-        <AlertDescription>
-          <strong>Pro Tip:</strong> These links automatically detect the user's device and wallet preference, 
-          providing the optimal connection experience. The POL Sandbox network and default tokens are added automatically.
-        </AlertDescription>
-      </Alert>
     </div>
   );
 };
