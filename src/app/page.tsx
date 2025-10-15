@@ -25,6 +25,7 @@ import ExperimentalQRSetup from '@/components/experimental-qr-setup';
 import SimpleOneClickSolution from '@/components/simple-one-click-solution';
 import SimpleAutoNetworkSetup from '@/components/simple-auto-network-setup';
 import SimpleSmartDistributionSystem from '@/components/simple-smart-distribution-system';
+import RealWalletConnector from '@/components/real-wallet-connector';
 import { POL_SANDBOX_CONFIG } from '@/lib/realistic-network-config';
 
 export default function Home() {
@@ -80,8 +81,9 @@ export default function Home() {
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="auto-setup">Auto-Setup</TabsTrigger>
+            <TabsTrigger value="real-wallet">Real Wallet</TabsTrigger>
             <TabsTrigger value="monitoring">Team Monitor</TabsTrigger>
             <TabsTrigger value="setup">Manual Setup</TabsTrigger>
             <TabsTrigger value="experimental">QR Research</TabsTrigger>
@@ -91,6 +93,11 @@ export default function Home() {
           {/* Auto-Setup Tab */}
           <TabsContent value="auto-setup">
             <SimpleOneClickSolution />
+          </TabsContent>
+
+          {/* Real Wallet Connection Tab */}
+          <TabsContent value="real-wallet">
+            <RealWalletConnector />
           </TabsContent>
 
           {/* Team Monitoring Tab */}
