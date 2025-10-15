@@ -18,6 +18,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import RealisticNetworkSetup from '@/components/realistic-network-setup';
+import ExperimentalQRSetup from '@/components/experimental-qr-setup';
 import { POL_SANDBOX_CONFIG } from '@/lib/realistic-network-config';
 
 export default function Home() {
@@ -59,9 +60,10 @@ export default function Home() {
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="setup">Network Setup</TabsTrigger>
+            <TabsTrigger value="experimental">QR Research</TabsTrigger>
             <TabsTrigger value="troubleshooting">Help</TabsTrigger>
           </TabsList>
 
@@ -202,6 +204,13 @@ export default function Home() {
           {/* Network Setup Tab */}
           <TabsContent value="setup">
             <RealisticNetworkSetup onNetworkAdded={handleNetworkAdded} />
+          </TabsContent>
+
+        {/* Experimental QR Research Tab */}
+          <TabsContent value="experimental">
+            <ExperimentalQRSetup onMethodTested={(method, result) => {
+              console.log(`QR method ${method} test result: ${result}`);
+            }} />
           </TabsContent>
 
           {/* Help Tab */}
