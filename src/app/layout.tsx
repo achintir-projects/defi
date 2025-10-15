@@ -1,34 +1,23 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "Z.ai Code Scaffold - AI-Powered Development",
-  description: "Modern Next.js scaffold optimized for AI-powered development with Z.ai. Built with TypeScript, Tailwind CSS, and shadcn/ui.",
-  keywords: ["Z.ai", "Next.js", "TypeScript", "Tailwind CSS", "shadcn/ui", "AI development", "React"],
-  authors: [{ name: "Z.ai Team" }],
+  title: "POL Sandbox Dashboard - Enhanced Wallet Connection",
+  description: "Protocol-Owned Liquidity Strategy Platform with intelligent wallet connection and price influence capabilities",
+  keywords: ["POL", "Sandbox", "DeFi", "Wallet", "Blockchain", "Price Influence"],
+  authors: [{ name: "POL Sandbox Team" }],
   openGraph: {
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
-    url: "https://chat.z.ai",
-    siteName: "Z.ai",
+    title: "POL Sandbox Dashboard",
+    description: "Intelligent wallet connection and price influence platform",
+    url: "https://pol-sandbox.com",
+    siteName: "POL Sandbox",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
+    title: "POL Sandbox Dashboard",
+    description: "Intelligent wallet connection and price influence platform",
   },
 };
 
@@ -39,9 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
-      >
+      <body className="antialiased bg-background text-foreground font-sans">
         {children}
         <Toaster />
       </body>
