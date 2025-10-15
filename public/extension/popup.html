@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 350px;
+      min-height: 400px;
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .logo {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 12px;
+      background: white;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+    
+    h1 {
+      font-size: 18px;
+      margin: 0;
+      font-weight: 600;
+    }
+    
+    .subtitle {
+      font-size: 12px;
+      opacity: 0.8;
+      margin: 4px 0 0;
+    }
+    
+    .toggle-section {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    
+    .toggle {
+      position: relative;
+      width: 48px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    
+    .toggle.active {
+      background: #4ade80;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.3s;
+    }
+    
+    .toggle.active .toggle-slider {
+      transform: translateX(24px);
+    }
+    
+    .status {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    
+    .config-section {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .config-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    
+    .config-item {
+      margin-bottom: 12px;
+    }
+    
+    .config-label {
+      font-size: 12px;
+      margin-bottom: 4px;
+      opacity: 0.9;
+    }
+    
+    .config-value {
+      width: 100%;
+      padding: 8px;
+      border: none;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      font-size: 12px;
+    }
+    
+    .config-value::placeholder {
+      color: rgba(255, 255, 255, 0.6);
+    }
+    
+    .tokens-section {
+      margin-bottom: 12px;
+    }
+    
+    .token-checkbox {
+      display: flex;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    
+    .token-checkbox input {
+      margin-right: 8px;
+    }
+    
+    .token-checkbox label {
+      font-size: 12px;
+      cursor: pointer;
+    }
+    
+    .save-button {
+      width: 100%;
+      padding: 12px;
+      background: white;
+      color: #667eea;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    
+    .save-button:hover {
+      transform: translateY(-1px);
+    }
+    
+    .save-button:active {
+      transform: translateY(0);
+    }
+    
+    .footer {
+      text-align: center;
+      font-size: 10px;
+      opacity: 0.6;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">🏦</div>
+    <h1>POL Sandbox</h1>
+    <div class="subtitle">Protocol-Owned Liquidity Price Oracle</div>
+  </div>
+
+  <div class="toggle-section">
+    <div class="toggle-container">
+      <div>
+        <div>Price Override</div>
+        <div class="status" id="status">Inactive</div>
+      </div>
+      <div class="toggle" id="toggle">
+        <div class="toggle-slider"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="config-section">
+    <div class="config-title">Configuration</div>
+    
+    <div class="config-item">
+      <div class="config-label">Adjustment Factor (%)</div>
+      <input type="number" class="config-value" id="adjustmentFactor" 
+             min="0" max="20" step="0.1" value="5">
+    </div>
+    
+    <div class="config-item">
+      <div class="config-label">Strategy</div>
+      <select class="config-value" id="strategy">
+        <option value="conservative">Conservative</option>
+        <option value="moderate" selected>Moderate</option>
+        <option value="aggressive">Aggressive</option>
+      </select>
+    </div>
+    
+    <div class="config-item tokens-section">
+      <div class="config-label">Target Tokens</div>
+      <div class="token-checkbox">
+        <input type="checkbox" id="token-USDT" checked>
+        <label for="token-USDT">USDT</label>
+      </div>
+      <div class="token-checkbox">
+        <input type="checkbox" id="token-USDC" checked>
+        <label for="token-USDC">USDC</label>
+      </div>
+      <div class="token-checkbox">
+        <input type="checkbox" id="token-DAI" checked>
+        <label for="token-DAI">DAI</label>
+      </div>
+      <div class="token-checkbox">
+        <input type="checkbox" id="token-BUSD">
+        <label for="token-BUSD">BUSD</label>
+      </div>
+    </div>
+    
+    <button class="save-button" id="saveButton">Save Configuration</button>
+  </div>
+
+  <div class="footer">
+    Version 1.0.0 • POL Sandbox Protocol
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
